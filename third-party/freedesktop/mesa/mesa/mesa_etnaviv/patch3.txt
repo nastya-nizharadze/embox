@@ -1,0 +1,2604 @@
+diff -aur download/mesa-18.2.5/aclocal.m4 ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/aclocal.m4
+--- download/mesa-18.2.5/aclocal.m4	2018-11-15 15:32:39.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/aclocal.m4	2018-11-27 16:22:11.349663350 +0300
+@@ -20,9 +20,9 @@
+ If you have problems, you may need to regenerate the build system entirely.
+ To do so, use the procedure documented by the package, typically 'autoreconf'.])])
+ 
+-dnl pkg.m4 - Macros to locate and utilise pkg-config.   -*- Autoconf -*-
+-dnl serial 11 (pkg-config-0.29)
+-dnl
++# pkg.m4 - Macros to locate and utilise pkg-config.   -*- Autoconf -*-
++# serial 11 (pkg-config-0.29.1)
++
+ dnl Copyright © 2004 Scott James Remnant <scott@netsplit.com>.
+ dnl Copyright © 2012-2015 Dan Nicholson <dbn.lists@gmail.com>
+ dnl
+@@ -63,7 +63,7 @@
+ dnl See the "Since" comment for each macro you use to see what version
+ dnl of the macros you require.
+ m4_defun([PKG_PREREQ],
+-[m4_define([PKG_MACROS_VERSION], [0.29])
++[m4_define([PKG_MACROS_VERSION], [0.29.1])
+ m4_if(m4_version_compare(PKG_MACROS_VERSION, [$1]), -1,
+     [m4_fatal([pkg.m4 version $1 or higher is required but ]PKG_MACROS_VERSION[ found])])
+ ])dnl PKG_PREREQ
+@@ -296,6 +296,74 @@
+ AS_VAR_IF([$1], [""], [$5], [$4])dnl
+ ])dnl PKG_CHECK_VAR
+ 
++dnl PKG_WITH_MODULES(VARIABLE-PREFIX, MODULES,
++dnl   [ACTION-IF-FOUND],[ACTION-IF-NOT-FOUND],
++dnl   [DESCRIPTION], [DEFAULT])
++dnl ------------------------------------------
++dnl
++dnl Prepare a "--with-" configure option using the lowercase
++dnl [VARIABLE-PREFIX] name, merging the behaviour of AC_ARG_WITH and
++dnl PKG_CHECK_MODULES in a single macro.
++AC_DEFUN([PKG_WITH_MODULES],
++[
++m4_pushdef([with_arg], m4_tolower([$1]))
++
++m4_pushdef([description],
++           [m4_default([$5], [build with ]with_arg[ support])])
++
++m4_pushdef([def_arg], [m4_default([$6], [auto])])
++m4_pushdef([def_action_if_found], [AS_TR_SH([with_]with_arg)=yes])
++m4_pushdef([def_action_if_not_found], [AS_TR_SH([with_]with_arg)=no])
++
++m4_case(def_arg,
++            [yes],[m4_pushdef([with_without], [--without-]with_arg)],
++            [m4_pushdef([with_without],[--with-]with_arg)])
++
++AC_ARG_WITH(with_arg,
++     AS_HELP_STRING(with_without, description[ @<:@default=]def_arg[@:>@]),,
++    [AS_TR_SH([with_]with_arg)=def_arg])
++
++AS_CASE([$AS_TR_SH([with_]with_arg)],
++            [yes],[PKG_CHECK_MODULES([$1],[$2],$3,$4)],
++            [auto],[PKG_CHECK_MODULES([$1],[$2],
++                                        [m4_n([def_action_if_found]) $3],
++                                        [m4_n([def_action_if_not_found]) $4])])
++
++m4_popdef([with_arg])
++m4_popdef([description])
++m4_popdef([def_arg])
++
++])dnl PKG_WITH_MODULES
++
++dnl PKG_HAVE_WITH_MODULES(VARIABLE-PREFIX, MODULES,
++dnl   [DESCRIPTION], [DEFAULT])
++dnl -----------------------------------------------
++dnl
++dnl Convenience macro to trigger AM_CONDITIONAL after PKG_WITH_MODULES
++dnl check._[VARIABLE-PREFIX] is exported as make variable.
++AC_DEFUN([PKG_HAVE_WITH_MODULES],
++[
++PKG_WITH_MODULES([$1],[$2],,,[$3],[$4])
++
++AM_CONDITIONAL([HAVE_][$1],
++               [test "$AS_TR_SH([with_]m4_tolower([$1]))" = "yes"])
++])dnl PKG_HAVE_WITH_MODULES
++
++dnl PKG_HAVE_DEFINE_WITH_MODULES(VARIABLE-PREFIX, MODULES,
++dnl   [DESCRIPTION], [DEFAULT])
++dnl ------------------------------------------------------
++dnl
++dnl Convenience macro to run AM_CONDITIONAL and AC_DEFINE after
++dnl PKG_WITH_MODULES check. HAVE_[VARIABLE-PREFIX] is exported as make
++dnl and preprocessor variable.
++AC_DEFUN([PKG_HAVE_DEFINE_WITH_MODULES],
++[
++PKG_HAVE_WITH_MODULES([$1],[$2],[$3],[$4])
++
++AS_IF([test "$AS_TR_SH([with_]m4_tolower([$1]))" = "yes"],
++        [AC_DEFINE([HAVE_][$1], 1, [Enable ]m4_tolower([$1])[ support])])
++])dnl PKG_HAVE_DEFINE_WITH_MODULES
++
+ # Copyright (C) 2002-2018 Free Software Foundation, Inc.
+ #
+ # This file is free software; the Free Software Foundation
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/: autom4te.cache
+diff -aur download/mesa-18.2.5/bin/ltmain.sh ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/bin/ltmain.sh
+--- download/mesa-18.2.5/bin/ltmain.sh	2018-11-15 15:32:35.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/bin/ltmain.sh	2018-11-27 16:22:09.017640275 +0300
+@@ -7150,33 +7150,7 @@
+ 
+       -l*)
+ 	if test X-lc = "X$arg" || test X-lm = "X$arg"; then
+-	  case $host in
+-	  *-*-cygwin* | *-*-mingw* | *-*-pw32* | *-*-beos* | *-cegcc* | *-*-haiku*)
+-	    # These systems don't actually have a C or math library (as such)
+-	    continue
+-	    ;;
+-	  *-*-os2*)
+-	    # These systems don't actually have a C library (as such)
+-	    test X-lc = "X$arg" && continue
+-	    ;;
+-	  *-*-openbsd* | *-*-freebsd* | *-*-dragonfly* | *-*-bitrig*)
+-	    # Do not include libc due to us having libc/libc_r.
+-	    test X-lc = "X$arg" && continue
+-	    ;;
+-	  *-*-rhapsody* | *-*-darwin1.[012])
+-	    # Rhapsody C and math libraries are in the System framework
+-	    func_append deplibs " System.ltframework"
+-	    continue
+-	    ;;
+-	  *-*-sco3.2v5* | *-*-sco5v6*)
+-	    # Causes problems with __ctype
+-	    test X-lc = "X$arg" && continue
+-	    ;;
+-	  *-*-sysv4.2uw2* | *-*-sysv5* | *-*-unixware* | *-*-OpenUNIX*)
+-	    # Compiler inserts libc in the correct place for threads to work
+-	    test X-lc = "X$arg" && continue
+-	    ;;
+-	  esac
++	  continue
+ 	elif test X-lc_r = "X$arg"; then
+ 	 case $host in
+ 	 *-*-openbsd* | *-*-freebsd* | *-*-dragonfly* | *-*-bitrig*)
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/: config.log
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/: config.status
+diff -aur download/mesa-18.2.5/configure ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/configure
+--- download/mesa-18.2.5/configure	2018-11-15 15:32:40.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/configure	2018-11-27 16:22:12.449674223 +0300
+@@ -10848,13 +10848,13 @@
+ done
+ 
+ 
+-for ac_header in dlfcn.h
++for ac_header in dlfcnqqqqqq.h
+ do :
+-  ac_fn_c_check_header_compile "$LINENO" "dlfcn.h" "ac_cv_header_dlfcn_h" "$ac_includes_default
++  ac_fn_c_check_header_compile "$LINENO" "dlfcnqqqqqq.h" "ac_cv_header_dlfcnqqqqqq_h" "$ac_includes_default
+ "
+-if test "x$ac_cv_header_dlfcn_h" = xyes; then :
++if test "x$ac_cv_header_dlfcnqqqqqq_h" = xyes; then :
+   cat >>confdefs.h <<_ACEOF
+-#define HAVE_DLFCN_H 1
++#define HAVE_DLFCNQQQQQQ_H 1
+ _ACEOF
+ 
+ fi
+@@ -14819,7 +14819,6 @@
+   case $lt_cv_dlopen in
+   dlopen)
+     save_CPPFLAGS=$CPPFLAGS
+-    test yes = "$ac_cv_header_dlfcn_h" && CPPFLAGS="$CPPFLAGS -DHAVE_DLFCN_H"
+ 
+     save_LDFLAGS=$LDFLAGS
+     wl=$lt_prog_compiler_wl eval LDFLAGS=\"\$LDFLAGS $export_dynamic_flag_spec\"
+@@ -21984,27 +21983,11 @@
+ 
+ done
+ 
+-ac_fn_c_check_header_mongrel "$LINENO" "dlfcn.h" "ac_cv_header_dlfcn_h" "$ac_includes_default"
+-if test "x$ac_cv_header_dlfcn_h" = xyes; then :
+-  DEFINES="$DEFINES -DHAVE_DLFCN_H"
+-fi
+-
+-
+-ac_fn_c_check_func "$LINENO" "strtof" "ac_cv_func_strtof"
+-if test "x$ac_cv_func_strtof" = xyes; then :
+-  DEFINES="$DEFINES -DHAVE_STRTOF"
+-fi
+-
+ ac_fn_c_check_func "$LINENO" "mkostemp" "ac_cv_func_mkostemp"
+ if test "x$ac_cv_func_mkostemp" = xyes; then :
+   DEFINES="$DEFINES -DHAVE_MKOSTEMP"
+ fi
+ 
+-ac_fn_c_check_func "$LINENO" "timespec_get" "ac_cv_func_timespec_get"
+-if test "x$ac_cv_func_timespec_get" = xyes; then :
+-  DEFINES="$DEFINES -DHAVE_TIMESPEC_GET"
+-fi
+-
+ ac_fn_c_check_func "$LINENO" "memfd_create" "ac_cv_func_memfd_create"
+ if test "x$ac_cv_func_memfd_create" = xyes; then :
+   DEFINES="$DEFINES -DHAVE_MEMFD_CREATE"
+@@ -22174,11 +22157,6 @@
+     ;;
+ esac
+ 
+-ac_fn_c_check_func "$LINENO" "posix_memalign" "ac_cv_func_posix_memalign"
+-if test "x$ac_cv_func_posix_memalign" = xyes; then :
+-  DEFINES="$DEFINES -DHAVE_POSIX_MEMALIGN"
+-fi
+-
+ 
+ 
+ pkg_failed=no
+@@ -22675,7 +22653,7 @@
+ if test "x$android" = xno; then
+     test -z "$PTHREAD_LIBS" && PTHREAD_LIBS="-lpthread"
+ fi
+-PTHREAD_LIBS="$PTHREAD_LIBS -pthread"
++PTHREAD_LIBS="$PTHREAD_LIBS"
+ 
+ case "$host_os" in
+ linux* | cygwin* | darwin* | solaris* | *-gnu* | gnu* | openbsd*)
+@@ -23601,9 +23579,6 @@
+ $as_echo "yes" >&6; }
+ 
+ fi
+-
+-$as_echo "#define HAVE_LIBUNWIND 1" >>confdefs.h
+-
+ fi
+ 
+ 
+@@ -24379,9 +24354,6 @@
+ 
+ 
+ if test "x$enable_gallium_osmesa" = xyes; then
+-    if ! echo "$with_gallium_drivers" | grep -q 'swrast'; then
+-        as_fn_error $? "gallium_osmesa requires the gallium swrast driver" "$LINENO" 5
+-    fi
+     if test "x$enable_osmesa" = xyes; then
+         as_fn_error $? "Cannot enable both classic and Gallium OSMesa implementations" "$LINENO" 5
+     fi
+@@ -27186,7 +27158,7 @@
+ fi
+ 
+ 
+-DEFINES="$DEFINES -DENABLE_SHADER_CACHE"
++DEFINES="$DEFINES"
+  if test -n "$DRI_DIRS"; then
+   NEED_MEGADRIVER_TRUE=
+   NEED_MEGADRIVER_FALSE='#'
+diff -aur download/mesa-18.2.5/configure.ac ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/configure.ac
+--- download/mesa-18.2.5/configure.ac	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/configure.ac	2018-11-27 16:26:26.860022230 +0300
+@@ -883,10 +883,7 @@
+ AC_CHECK_HEADER([xlocale.h], [DEFINES="$DEFINES -DHAVE_XLOCALE_H"])
+ AC_CHECK_HEADER([sys/sysctl.h], [DEFINES="$DEFINES -DHAVE_SYS_SYSCTL_H"])
+ AC_CHECK_HEADERS([endian.h])
+-AC_CHECK_HEADER([dlfcn.h], [DEFINES="$DEFINES -DHAVE_DLFCN_H"])
+-AC_CHECK_FUNC([strtof], [DEFINES="$DEFINES -DHAVE_STRTOF"])
+ AC_CHECK_FUNC([mkostemp], [DEFINES="$DEFINES -DHAVE_MKOSTEMP"])
+-AC_CHECK_FUNC([timespec_get], [DEFINES="$DEFINES -DHAVE_TIMESPEC_GET"])
+ AC_CHECK_FUNC([memfd_create], [DEFINES="$DEFINES -DHAVE_MEMFD_CREATE"])
+ 
+ AC_MSG_CHECKING([whether strtod has locale support])
+@@ -937,7 +934,6 @@
+ esac
+ 
+ dnl See if posix_memalign is available
+-AC_CHECK_FUNC([posix_memalign], [DEFINES="$DEFINES -DHAVE_POSIX_MEMALIGN"])
+ 
+ dnl Check for zlib
+ PKG_CHECK_MODULES([ZLIB], [zlib >= $ZLIB_REQUIRED])
+@@ -953,13 +949,12 @@
+ dnl pkgconfig files.  Since Android doesn't have a pthread lib, this check
+ dnl is not valid for that platform.
+ if test "x$android" = xno; then
+-    test -z "$PTHREAD_LIBS" && PTHREAD_LIBS="-lpthread"
+ fi
+ dnl According to the manual when using pthreads, one should add -pthread to
+ dnl both compile and link-time arguments.
+ dnl In practise that should be sufficient for all platforms, since any
+ dnl platforms build with GCC and Clang support the flag.
+-PTHREAD_LIBS="$PTHREAD_LIBS -pthread"
++PTHREAD_LIBS="$PTHREAD_LIBS"
+ 
+ dnl pthread-stubs is mandatory on some BSD platforms, due to the nature of the
+ dnl project. Even then there's a notable issue as described in the project README
+@@ -1206,7 +1201,6 @@
+ 
+ if test "x$LIBUNWIND" = "xyes"; then
+     PKG_CHECK_MODULES(LIBUNWIND, libunwind)
+-    AC_DEFINE(HAVE_LIBUNWIND, 1, [Have libunwind support])
+ fi
+ 
+ 
+@@ -1622,9 +1616,6 @@
+ dnl
+ 
+ if test "x$enable_gallium_osmesa" = xyes; then
+-    if ! echo "$with_gallium_drivers" | grep -q 'swrast'; then
+-        AC_MSG_ERROR([gallium_osmesa requires the gallium swrast driver])
+-    fi
+     if test "x$enable_osmesa" = xyes; then
+         AC_MSG_ERROR([Cannot enable both classic and Gallium OSMesa implementations])
+     fi
+@@ -2172,7 +2163,7 @@
+ fi
+ 
+ 
+-DEFINES="$DEFINES -DENABLE_SHADER_CACHE"
++DEFINES="$DEFINES"
+ AM_CONDITIONAL(NEED_MEGADRIVER, test -n "$DRI_DIRS")
+ AM_CONDITIONAL(NEED_LIBMESA, test "x$enable_glx" = xxlib -o \
+                                   "x$enable_osmesa" = xyes -o \
+@@ -2927,7 +2918,7 @@
+     fi
+ 
+     dnl The gallium-xlib GLX and gallium OSMesa targets directly embed the
+-    dnl swr/llvmpipe driver into the final binary.  Adding LLVM_LIBS results in 
++    dnl swr/llvmpipe driver into the final binary.  Adding LLVM_LIBS results in
+     dnl the LLVM library propagated in the Libs.private of the respective .pc
+     dnl file which ensures complete dependency information when statically
+     dnl linking.
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/: configure.ac.orig
+diff -aur download/mesa-18.2.5/include/c11/threads_posix.h ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/include/c11/threads_posix.h
+--- download/mesa-18.2.5/include/c11/threads_posix.h	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/include/c11/threads_posix.h	2018-11-27 16:22:09.005640156 +0300
+@@ -35,6 +35,7 @@
+ #include <unistd.h>
+ #include <sched.h>
+ #include <stdint.h> /* for intptr_t */
++#include <pthread.h>
+ 
+ /*
+ Configuration macro:
+@@ -43,7 +44,7 @@
+     Use pthread_mutex_timedlock() for `mtx_timedlock()'
+     Otherwise use mtx_trylock() + *busy loop* emulation.
+ */
+-#if !defined(__CYGWIN__) && !defined(__APPLE__) && !defined(__NetBSD__)
++#if !defined(__CYGWIN__) && !defined(__APPLE__) && !defined(__NetBSD__) && !defined(__EMBOX__)
+ #define EMULATED_THREADS_USE_NATIVE_TIMEDLOCK
+ #endif
+ 
+diff -aur download/mesa-18.2.5/include/c99_alloca.h ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/include/c99_alloca.h
+--- download/mesa-18.2.5/include/c99_alloca.h	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/include/c99_alloca.h	2018-11-27 16:22:09.021640314 +0300
+@@ -41,6 +41,7 @@
+ 
+ #else /* !defined(_MSC_VER) */
+ 
++#  include <alloca.h>
+ #  include <stdlib.h>
+ 
+ #endif /* !defined(_MSC_VER) */
+diff -aur download/mesa-18.2.5/include/drm-uapi/drm.h ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/include/drm-uapi/drm.h
+--- download/mesa-18.2.5/include/drm-uapi/drm.h	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/include/drm-uapi/drm.h	2018-11-27 16:22:09.021640314 +0300
+@@ -44,7 +44,7 @@
+ 
+ #else /* One of the BSDs */
+ 
+-#include <sys/ioccom.h>
++//#include <sys/ioccom.h>
+ #include <sys/types.h>
+ typedef int8_t   __s8;
+ typedef uint8_t  __u8;
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/: libtool
+diff -aur download/mesa-18.2.5/m4/libtool.m4 ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/m4/libtool.m4
+--- download/mesa-18.2.5/m4/libtool.m4	2018-11-15 15:32:35.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/m4/libtool.m4	2018-11-27 16:22:09.013640235 +0300
+@@ -1814,7 +1814,7 @@
+ # _LT_HEADER_DLFCN
+ # ----------------
+ m4_defun([_LT_HEADER_DLFCN],
+-[AC_CHECK_HEADERS([dlfcn.h], [], [], [AC_INCLUDES_DEFAULT])dnl
++[AC_CHECK_HEADERS([dlfcnqqqqqq.h], [], [], [AC_INCLUDES_DEFAULT])dnl
+ ])# _LT_HEADER_DLFCN
+ 
+ 
+@@ -1992,7 +1992,6 @@
+   case $lt_cv_dlopen in
+   dlopen)
+     save_CPPFLAGS=$CPPFLAGS
+-    test yes = "$ac_cv_header_dlfcn_h" && CPPFLAGS="$CPPFLAGS -DHAVE_DLFCN_H"
+ 
+     save_LDFLAGS=$LDFLAGS
+     wl=$lt_prog_compiler_wl eval LDFLAGS=\"\$LDFLAGS $export_dynamic_flag_spec\"
+@@ -3857,10 +3856,8 @@
+   ;;
+ *-ncr-sysv4.3*)
+   AC_CHECK_LIB(mw, _mwvalidcheckl, LIBM=-lmw)
+-  AC_CHECK_LIB(m, cos, LIBM="$LIBM -lm")
+   ;;
+ *)
+-  AC_CHECK_LIB(m, cos, LIBM=-lm)
+   ;;
+ esac
+ AC_SUBST([LIBM])
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/: Makefile
+diff -aur download/mesa-18.2.5/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/Makefile.in
+--- download/mesa-18.2.5/Makefile.in	2018-11-15 15:32:41.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/Makefile.in	2018-11-27 16:22:27.425821543 +0300
+@@ -198,8 +198,8 @@
+ 	$(top_srcdir)/src/gbm/main/gbm.pc.in \
+ 	$(top_srcdir)/src/mapi/es1api/glesv1_cm.pc.in \
+ 	$(top_srcdir)/src/mapi/es2api/glesv2.pc.in bin/ar-lib \
+-	bin/compile bin/config.guess bin/config.sub bin/install-sh \
+-	bin/ltmain.sh bin/missing
++	bin/compile bin/config.guess bin/config.sub bin/depcomp \
++	bin/install-sh bin/ltmain.sh bin/missing
+ DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
+ distdir = $(PACKAGE)-$(VERSION)
+ top_distdir = $(distdir)
+diff -aur download/mesa-18.2.5/meson.build ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/meson.build
+--- download/mesa-18.2.5/meson.build	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/meson.build	2018-11-27 16:22:09.017640275 +0300
+@@ -718,7 +718,7 @@
+ endif
+ 
+ if get_option('shader-cache')
+-  pre_args += '-DENABLE_SHADER_CACHE'
++  pre_args += ''
+ elif with_amd_vk
+   error('Radv requires shader cache support')
+ endif
+@@ -966,13 +966,13 @@
+   pre_args += '-DMAJOR_IN_MKDEV'
+ endif
+ 
+-foreach h : ['xlocale.h', 'sys/sysctl.h', 'linux/futex.h', 'endian.h', 'dlfcn.h']
++foreach h : ['xlocale.h', 'sys/sysctl.h', 'linux/futex.h', 'endian.h']
+   if cc.compiles('#include <@0@>'.format(h), name : '@0@'.format(h))
+     pre_args += '-DHAVE_@0@'.format(h.to_upper().underscorify())
+   endif
+ endforeach
+ 
+-foreach f : ['strtof', 'mkostemp', 'posix_memalign', 'timespec_get', 'memfd_create']
++foreach f : ['mkostemp', 'memfd_create']
+   if cc.has_function(f)
+     pre_args += '-DHAVE_@0@'.format(f.to_upper())
+   endif
+@@ -1429,7 +1429,7 @@
+   gl_priv_libs += ['-lpthread', '-pthread']
+ endif
+ if dep_m.found()
+-  gl_priv_libs += '-lm'
++  gl_priv_libs += ''
+ endif
+ if dep_dl.found()
+   gl_priv_libs += '-ldl'
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/amd: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/amd/vulkan: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/broadcom: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler: blob.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler: blob.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler: glsl_types.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler: glsl_types.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler: libcompiler.la
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler: .libs
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler: Makefile
+diff -aur download/mesa-18.2.5/src/compiler/Makefile.glsl.am ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/Makefile.glsl.am
+--- download/mesa-18.2.5/src/compiler/Makefile.glsl.am	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/Makefile.glsl.am	2018-11-27 16:22:09.017640275 +0300
+@@ -124,8 +124,7 @@
+ 	glsl/glcpp/glcpp.c
+ glsl_glcpp_glcpp_LDADD =				\
+ 	glsl/libglcpp.la	\
+-	$(top_builddir)/src/libglsl_util.la		\
+-	-lm
++	$(top_builddir)/src/libglsl_util.la
+ 
+ glsl_libglsl_la_LIBADD = \
+ 	nir/libnir.la \
+diff -aur download/mesa-18.2.5/src/compiler/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/Makefile.in
+--- download/mesa-18.2.5/src/compiler/Makefile.in	2018-11-15 15:32:41.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/Makefile.in	2018-11-27 16:22:27.873825930 +0300
+@@ -434,7 +434,7 @@
+ am_spirv2nir_OBJECTS = spirv/spirv2nir-spirv2nir.$(OBJEXT)
+ spirv2nir_OBJECTS = $(am_spirv2nir_OBJECTS)
+ spirv2nir_DEPENDENCIES = nir/libnir.la \
+-	$(top_builddir)/src/util/libmesautil.la $(am__DEPENDENCIES_1)
++	$(top_builddir)/src/util/libmesautil.la
+ AM_V_P = $(am__v_P_@AM_V@)
+ am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
+ am__v_P_0 = false
+@@ -1688,9 +1688,7 @@
+ 
+ spirv2nir_LDADD = \
+ 	nir/libnir.la					\
+-	$(top_builddir)/src/util/libmesautil.la		\
+-	-lm						\
+-	$(PTHREAD_LIBS)
++	$(top_builddir)/src/util/libmesautil.la
+ 
+ nodist_EXTRA_spirv2nir_SOURCES = dummy.cpp
+ TESTS_ENVIRONMENT = \
+@@ -1776,8 +1774,7 @@
+ 
+ glsl_glcpp_glcpp_LDADD = \
+ 	glsl/libglcpp.la	\
+-	$(top_builddir)/src/libglsl_util.la		\
+-	-lm
++	$(top_builddir)/src/libglsl_util.la
+ 
+ glsl_libglsl_la_LIBADD = \
+ 	nir/libnir.la \
+diff -aur download/mesa-18.2.5/src/compiler/Makefile.spirv.am ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/Makefile.spirv.am
+--- download/mesa-18.2.5/src/compiler/Makefile.spirv.am	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/Makefile.spirv.am	2018-11-27 16:22:09.017640275 +0300
+@@ -41,9 +41,7 @@
+ 
+ spirv2nir_LDADD =					\
+ 	nir/libnir.la					\
+-	$(top_builddir)/src/util/libmesautil.la		\
+-	-lm						\
+-	$(PTHREAD_LIBS)
++	$(top_builddir)/src/util/libmesautil.la
+ 
+ nodist_EXTRA_spirv2nir_SOURCES = dummy.cpp
+ 
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: .deps
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: .dirstamp
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: libnir.la
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: .libs
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_builtin_builder.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_builtin_builder.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_clone.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_clone.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_constant_expressions.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_constant_expressions.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_control_flow.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_control_flow.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_deref.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_deref.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_dominance.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_dominance.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_from_ssa.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_from_ssa.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_gather_info.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_gather_info.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_gs_count_vertices.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_gs_count_vertices.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_inline_functions.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_inline_functions.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_instr_set.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_instr_set.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_intrinsics.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_intrinsics.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_linking_helpers.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_linking_helpers.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_liveness.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_liveness.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_loop_analyze.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_loop_analyze.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_alpha_test.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_alpha_test.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_alu.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_alu.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_alu_to_scalar.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_alu_to_scalar.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_atomics_to_ssbo.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_atomics_to_ssbo.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_bitmap.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_bitmap.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_bit_size.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_bit_size.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_clamp_color_outputs.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_clamp_color_outputs.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_clip_cull_distance_arrays.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_clip_cull_distance_arrays.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_clip.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_clip.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_constant_initializers.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_constant_initializers.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_double_ops.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_double_ops.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_drawpixels.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_drawpixels.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_global_vars_to_local.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_global_vars_to_local.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_gs_intrinsics.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_gs_intrinsics.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_idiv.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_idiv.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_indirect_derefs.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_indirect_derefs.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_int64.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_int64.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_io_arrays_to_elements.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_io_arrays_to_elements.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_io.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_io.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_io_to_scalar.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_io_to_scalar.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_io_to_temporaries.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_io_to_temporaries.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_load_const_to_scalar.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_load_const_to_scalar.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_locals_to_regs.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_locals_to_regs.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_packing.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_packing.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_passthrough_edgeflags.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_passthrough_edgeflags.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_patch_vertices.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_patch_vertices.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_phis_to_scalar.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_phis_to_scalar.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_regs_to_ssa.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_regs_to_ssa.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_returns.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_returns.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_subgroups.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_subgroups.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_system_values.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_system_values.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_tex.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_tex.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_to_source_mods.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_to_source_mods.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_two_sided_color.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_two_sided_color.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_var_copies.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_var_copies.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_vars_to_ssa.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_vars_to_ssa.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_vec_to_movs.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_vec_to_movs.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_wpos_center.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_wpos_center.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_wpos_ytransform.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_lower_wpos_ytransform.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_metadata.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_metadata.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_move_load_const.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_move_load_const.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_move_vec_src_uses_to_dest.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_move_vec_src_uses_to_dest.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_normalize_cubemap_coords.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_normalize_cubemap_coords.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opcodes.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opcodes.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_algebraic.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_algebraic.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_conditional_discard.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_conditional_discard.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_constant_folding.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_constant_folding.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_copy_propagate.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_copy_propagate.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_copy_prop_vars.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_copy_prop_vars.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_cse.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_cse.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_dce.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_dce.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_dead_cf.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_dead_cf.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_gcm.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_gcm.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_global_to_local.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_global_to_local.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_if.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_if.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_intrinsics.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_intrinsics.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_large_constants.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_large_constants.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_loop_unroll.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_loop_unroll.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_move_comparisons.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_move_comparisons.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_move_load_ubo.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_move_load_ubo.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_peephole_select.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_peephole_select.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_remove_phis.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_remove_phis.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_shrink_load.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_shrink_load.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_trivial_continues.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_trivial_continues.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_undef.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_opt_undef.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_phi_builder.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_phi_builder.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_print.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_print.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_propagate_invariant.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_propagate_invariant.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_remove_dead_variables.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_remove_dead_variables.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_repair_ssa.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_repair_ssa.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_search.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_search.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_serialize.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_serialize.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_split_per_member_structs.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_split_per_member_structs.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_split_var_copies.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_split_var_copies.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_sweep.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_sweep.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_to_lcssa.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_to_lcssa.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_validate.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_validate.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_worklist.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/nir: nir_worklist.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler: nir_types.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler: nir_types.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler: shader_enums.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler: shader_enums.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/spirv: .deps
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/spirv: .dirstamp
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/spirv: gl_spirv.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/spirv: gl_spirv.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/spirv: spirv2nir-spirv2nir.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/spirv: spirv_info.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/spirv: spirv_info.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/spirv: spirv_to_nir.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/spirv: spirv_to_nir.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/spirv: vtn_alu.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/spirv: vtn_alu.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/spirv: vtn_amd.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/spirv: vtn_amd.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/spirv: vtn_cfg.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/spirv: vtn_cfg.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/spirv: vtn_gather_types.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/spirv: vtn_gather_types.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/spirv: vtn_glsl450.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/spirv: vtn_glsl450.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/spirv: vtn_subgroup.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/spirv: vtn_subgroup.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/spirv: vtn_variables.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/compiler/spirv: vtn_variables.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/egl/main: egl.pc
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/egl: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/egl/wayland/wayland-drm: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/Automake.inc ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/Automake.inc
+--- download/mesa-18.2.5/src/gallium/Automake.inc	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/Automake.inc	2018-11-27 16:22:09.017640275 +0300
+@@ -47,11 +47,9 @@
+ 	$(VISIBILITY_CFLAGS)
+ 
+ GALLIUM_COMMON_LIB_DEPS = \
+-	-lm \
+ 	$(LIBUNWIND_LIBS) \
+ 	$(LIBSENSORS_LIBS) \
+ 	$(CLOCK_LIB) \
+-	$(PTHREAD_LIBS) \
+ 	$(DLOPEN_LIBS)
+ 
+ if HAVE_LIBDRM
+diff -aur download/mesa-18.2.5/src/gallium/auxiliary/hud/hud_context.c ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/auxiliary/hud/hud_context.c
+--- download/mesa-18.2.5/src/gallium/auxiliary/hud/hud_context.c	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/auxiliary/hud/hud_context.c	2018-11-27 16:22:09.005640156 +0300
+@@ -36,6 +36,7 @@
+ #include <inttypes.h>
+ #include <signal.h>
+ #include <stdio.h>
++#include <unistd.h>
+ 
+ #include "hud/hud_context.h"
+ #include "hud/hud_private.h"
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/auxiliary: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/auxiliary/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/auxiliary/Makefile.in
+--- download/mesa-18.2.5/src/gallium/auxiliary/Makefile.in	2018-11-15 15:32:41.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/auxiliary/Makefile.in	2018-11-27 16:22:28.193829062 +0300
+@@ -1618,9 +1618,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+diff -aur download/mesa-18.2.5/src/gallium/auxiliary/os/os_misc.c ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/auxiliary/os/os_misc.c
+--- download/mesa-18.2.5/src/gallium/auxiliary/os/os_misc.c	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/auxiliary/os/os_misc.c	2018-11-27 16:22:09.005640156 +0300
+@@ -47,7 +47,7 @@
+ #endif
+ 
+ 
+-#if defined(PIPE_OS_LINUX) || defined(PIPE_OS_CYGWIN) || defined(PIPE_OS_SOLARIS)
++#if defined(PIPE_OS_LINUX) || defined(PIPE_OS_CYGWIN) || defined(PIPE_OS_SOLARIS) || defined(__EMBOX__)
+ #  include <unistd.h>
+ #elif defined(PIPE_OS_APPLE) || defined(PIPE_OS_BSD)
+ #  include <sys/sysctl.h>
+@@ -124,7 +124,7 @@
+ bool
+ os_get_total_physical_memory(uint64_t *size)
+ {
+-#if defined(PIPE_OS_LINUX) || defined(PIPE_OS_CYGWIN) || defined(PIPE_OS_SOLARIS)
++#if defined(PIPE_OS_LINUX) || defined(PIPE_OS_CYGWIN) || defined(PIPE_OS_SOLARIS) || defined(__EMBOX__)
+    const long phys_pages = sysconf(_SC_PHYS_PAGES);
+    const long page_size = sysconf(_SC_PAGE_SIZE);
+ 
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/auxiliary/pipe-loader: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/auxiliary/pipe-loader/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/auxiliary/pipe-loader/Makefile.in
+--- download/mesa-18.2.5/src/gallium/auxiliary/pipe-loader/Makefile.in	2018-11-15 15:32:41.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/auxiliary/pipe-loader/Makefile.in	2018-11-27 16:22:28.261829728 +0300
+@@ -622,9 +622,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+diff -aur download/mesa-18.2.5/src/gallium/auxiliary/renderonly/renderonly.c ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/auxiliary/renderonly/renderonly.c
+--- download/mesa-18.2.5/src/gallium/auxiliary/renderonly/renderonly.c	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/auxiliary/renderonly/renderonly.c	2018-11-27 16:22:09.005640156 +0300
+@@ -30,6 +30,7 @@
+ #include <fcntl.h>
+ #include <stdio.h>
+ #include <xf86drm.h>
++#include <unistd.h>
+ 
+ #include "state_tracker/drm_driver.h"
+ #include "pipe/p_screen.h"
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/auxiliary/renderonly: renderonly.c.orig
+diff -aur download/mesa-18.2.5/src/gallium/auxiliary/tgsi/tgsi_info.h ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/auxiliary/tgsi/tgsi_info.h
+--- download/mesa-18.2.5/src/gallium/auxiliary/tgsi/tgsi_info.h	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/auxiliary/tgsi/tgsi_info.h	2018-11-27 16:22:09.021640314 +0300
+@@ -79,7 +79,7 @@
+    unsigned pre_dedent:1;
+    unsigned post_indent:1;
+    enum tgsi_output_mode output_mode:4;
+-   enum tgsi_opcode opcode:10;
++   enum tgsi_opcode opcode;
+ };
+ 
+ const struct tgsi_opcode_info *
+diff -aur download/mesa-18.2.5/src/gallium/auxiliary/tgsi/tgsi_ureg.h ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/auxiliary/tgsi/tgsi_ureg.h
+--- download/mesa-18.2.5/src/gallium/auxiliary/tgsi/tgsi_ureg.h	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/auxiliary/tgsi/tgsi_ureg.h	2018-11-27 16:22:09.021640314 +0300
+@@ -253,14 +253,14 @@
+                         unsigned array_id,
+                         unsigned array_size,
+                         boolean invariant);
+-
++/*
+ struct ureg_dst
+ ureg_DECL_output_masked(struct ureg_program *,
+                         enum tgsi_semantic semantic_name,
+                         unsigned semantic_index,
+                         unsigned usage_mask,
+                         unsigned array_id,
+-                        unsigned array_size);
++                        unsigned array_size); */
+ 
+ struct ureg_dst
+ ureg_DECL_output(struct ureg_program *,
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/etnaviv: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/drivers/etnaviv/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/etnaviv/Makefile.in
+--- download/mesa-18.2.5/src/gallium/drivers/etnaviv/Makefile.in	2018-11-15 15:32:41.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/etnaviv/Makefile.in	2018-11-27 16:22:28.337830471 +0300
+@@ -173,8 +173,7 @@
+ @HAVE_PLATFORM_ANDROID_TRUE@	$(am__DEPENDENCIES_1)
+ am__DEPENDENCIES_4 = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+ 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2) \
+-	$(am__DEPENDENCIES_3)
++	$(am__DEPENDENCIES_2) $(am__DEPENDENCIES_3)
+ etnaviv_compiler_DEPENDENCIES = libetnaviv.la \
+ 	$(top_builddir)/src/gallium/auxiliary/libgallium.la \
+ 	$(top_builddir)/src/util/libmesautil.la $(am__DEPENDENCIES_4) \
+@@ -699,9 +698,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/freedreno: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/drivers/freedreno/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/freedreno/Makefile.in
+--- download/mesa-18.2.5/src/gallium/drivers/freedreno/Makefile.in	2018-11-15 15:32:42.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/freedreno/Makefile.in	2018-11-27 16:22:28.429831372 +0300
+@@ -177,8 +177,7 @@
+ @HAVE_PLATFORM_ANDROID_TRUE@	$(am__DEPENDENCIES_1)
+ am__DEPENDENCIES_4 = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+ 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2) \
+-	$(am__DEPENDENCIES_3)
++	$(am__DEPENDENCIES_2) $(am__DEPENDENCIES_3)
+ ir3_compiler_DEPENDENCIES = libfreedreno.la \
+ 	$(top_builddir)/src/gallium/auxiliary/libgallium.la \
+ 	$(top_builddir)/src/compiler/nir/libnir.la \
+@@ -878,9 +877,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/i915: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/drivers/i915/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/i915/Makefile.in
+--- download/mesa-18.2.5/src/gallium/drivers/i915/Makefile.in	2018-11-15 15:32:42.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/i915/Makefile.in	2018-11-27 16:22:28.489831959 +0300
+@@ -651,9 +651,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/imx: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/drivers/imx/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/imx/Makefile.in
+--- download/mesa-18.2.5/src/gallium/drivers/imx/Makefile.in	2018-11-15 15:32:42.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/imx/Makefile.in	2018-11-27 16:22:28.545832507 +0300
+@@ -539,9 +539,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/llvmpipe: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/drivers/llvmpipe/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/llvmpipe/Makefile.in
+--- download/mesa-18.2.5/src/gallium/drivers/llvmpipe/Makefile.in	2018-11-15 15:32:42.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/llvmpipe/Makefile.in	2018-11-27 16:22:28.633833369 +0300
+@@ -961,9 +961,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/nouveau: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/drivers/nouveau/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/nouveau/Makefile.in
+--- download/mesa-18.2.5/src/gallium/drivers/nouveau/Makefile.in	2018-11-15 15:32:42.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/nouveau/Makefile.in	2018-11-27 16:22:28.717834190 +0300
+@@ -215,8 +215,7 @@
+ @HAVE_PLATFORM_ANDROID_TRUE@	$(am__DEPENDENCIES_1)
+ am__DEPENDENCIES_4 = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+ 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2) \
+-	$(am__DEPENDENCIES_3)
++	$(am__DEPENDENCIES_2) $(am__DEPENDENCIES_3)
+ nouveau_compiler_DEPENDENCIES = libnouveau.la \
+ 	$(top_builddir)/src/gallium/auxiliary/libgallium.la \
+ 	$(top_builddir)/src/util/libmesautil.la $(am__DEPENDENCIES_4)
+@@ -950,9 +949,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/pl111: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/drivers/pl111/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/pl111/Makefile.in
+--- download/mesa-18.2.5/src/gallium/drivers/pl111/Makefile.in	2018-11-15 15:32:42.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/pl111/Makefile.in	2018-11-27 16:22:28.773834739 +0300
+@@ -539,9 +539,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/r300: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/drivers/r300/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/r300/Makefile.in
+--- download/mesa-18.2.5/src/gallium/drivers/r300/Makefile.in	2018-11-15 15:32:42.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/r300/Makefile.in	2018-11-27 16:22:28.853835522 +0300
+@@ -179,8 +179,7 @@
+ @HAVE_PLATFORM_ANDROID_TRUE@	$(am__DEPENDENCIES_1)
+ am__DEPENDENCIES_4 = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+ 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2) \
+-	$(am__DEPENDENCIES_3)
++	$(am__DEPENDENCIES_2) $(am__DEPENDENCIES_3)
+ r300_compiler_tests_DEPENDENCIES = libr300.la \
+ 	$(top_builddir)/src/gallium/auxiliary/libgallium.la \
+ 	$(top_builddir)/src/util/libmesautil.la $(am__DEPENDENCIES_4)
+@@ -984,9 +983,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/r600: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/drivers/r600/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/r600/Makefile.in
+--- download/mesa-18.2.5/src/gallium/drivers/r600/Makefile.in	2018-11-15 15:32:42.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/r600/Makefile.in	2018-11-27 16:22:28.921836186 +0300
+@@ -724,9 +724,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/radeonsi: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/drivers/radeonsi/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/radeonsi/Makefile.in
+--- download/mesa-18.2.5/src/gallium/drivers/radeonsi/Makefile.in	2018-11-15 15:32:42.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/radeonsi/Makefile.in	2018-11-27 16:22:28.985836813 +0300
+@@ -705,9 +705,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/softpipe: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/drivers/softpipe/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/softpipe/Makefile.in
+--- download/mesa-18.2.5/src/gallium/drivers/softpipe/Makefile.in	2018-11-15 15:32:42.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/softpipe/Makefile.in	2018-11-27 16:22:29.041837361 +0300
+@@ -670,9 +670,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/svga: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/drivers/svga/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/svga/Makefile.in
+--- download/mesa-18.2.5/src/gallium/drivers/svga/Makefile.in	2018-11-15 15:32:42.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/svga/Makefile.in	2018-11-27 16:22:29.105837987 +0300
+@@ -759,9 +759,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/swr: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/drivers/swr/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/swr/Makefile.in
+--- download/mesa-18.2.5/src/gallium/drivers/swr/Makefile.in	2018-11-15 15:32:42.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/swr/Makefile.in	2018-11-27 16:22:29.533842173 +0300
+@@ -1713,9 +1713,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/tegra: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/drivers/tegra/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/tegra/Makefile.in
+--- download/mesa-18.2.5/src/gallium/drivers/tegra/Makefile.in	2018-11-15 15:32:42.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/tegra/Makefile.in	2018-11-27 16:22:29.597842799 +0300
+@@ -571,9 +571,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/v3d: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/drivers/v3d/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/v3d/Makefile.in
+--- download/mesa-18.2.5/src/gallium/drivers/v3d/Makefile.in	2018-11-15 15:32:42.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/v3d/Makefile.in	2018-11-27 16:22:29.677843581 +0300
+@@ -688,9 +688,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/vc4: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/drivers/vc4/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/vc4/Makefile.in
+--- download/mesa-18.2.5/src/gallium/drivers/vc4/Makefile.in	2018-11-15 15:32:43.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/vc4/Makefile.in	2018-11-27 16:22:29.737844169 +0300
+@@ -716,9 +716,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/virgl: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/drivers/virgl/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/virgl/Makefile.in
+--- download/mesa-18.2.5/src/gallium/drivers/virgl/Makefile.in	2018-11-15 15:32:43.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/drivers/virgl/Makefile.in	2018-11-27 16:22:29.789844678 +0300
+@@ -610,9 +610,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/clover: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/dri: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/state_trackers/dri/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/dri/Makefile.in
+--- download/mesa-18.2.5/src/gallium/state_trackers/dri/Makefile.in	2018-11-15 15:32:43.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/dri/Makefile.in	2018-11-27 16:22:29.953846281 +0300
+@@ -623,9 +623,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/glx/xlib: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/state_trackers/glx/xlib/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/glx/xlib/Makefile.in
+--- download/mesa-18.2.5/src/gallium/state_trackers/glx/xlib/Makefile.in	2018-11-15 15:32:43.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/glx/xlib/Makefile.in	2018-11-27 16:22:30.005846790 +0300
+@@ -598,9 +598,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/nine: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/state_trackers/nine/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/nine/Makefile.in
+--- download/mesa-18.2.5/src/gallium/state_trackers/nine/Makefile.in	2018-11-15 15:32:43.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/nine/Makefile.in	2018-11-27 16:22:30.061847337 +0300
+@@ -677,9 +677,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/omx/bellagio: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/state_trackers/omx/bellagio/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/omx/bellagio/Makefile.in
+--- download/mesa-18.2.5/src/gallium/state_trackers/omx/bellagio/Makefile.in	2018-11-15 15:32:43.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/omx/bellagio/Makefile.in	2018-11-27 16:22:30.173848432 +0300
+@@ -600,9 +600,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/omx: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/state_trackers/omx/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/omx/Makefile.in
+--- download/mesa-18.2.5/src/gallium/state_trackers/omx/Makefile.in	2018-11-15 15:32:43.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/omx/Makefile.in	2018-11-27 16:22:30.121847923 +0300
+@@ -641,9 +641,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/omx/tizonia: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/state_trackers/omx/tizonia/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/omx/tizonia/Makefile.in
+--- download/mesa-18.2.5/src/gallium/state_trackers/omx/tizonia/Makefile.in	2018-11-15 15:32:43.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/omx/tizonia/Makefile.in	2018-11-27 16:22:30.229848980 +0300
+@@ -610,9 +610,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/osmesa: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/state_trackers/osmesa/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/osmesa/Makefile.in
+--- download/mesa-18.2.5/src/gallium/state_trackers/osmesa/Makefile.in	2018-11-15 15:32:43.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/osmesa/Makefile.in	2018-11-27 16:22:30.285849526 +0300
+@@ -587,9 +587,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/va: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/state_trackers/va/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/va/Makefile.in
+--- download/mesa-18.2.5/src/gallium/state_trackers/va/Makefile.in	2018-11-15 15:32:43.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/va/Makefile.in	2018-11-27 16:22:30.341850074 +0300
+@@ -618,9 +618,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/vdpau: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/state_trackers/vdpau/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/vdpau/Makefile.in
+--- download/mesa-18.2.5/src/gallium/state_trackers/vdpau/Makefile.in	2018-11-15 15:32:43.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/vdpau/Makefile.in	2018-11-27 16:22:30.397850622 +0300
+@@ -605,9 +605,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/xa: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/state_trackers/xa/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/xa/Makefile.in
+--- download/mesa-18.2.5/src/gallium/state_trackers/xa/Makefile.in	2018-11-15 15:32:43.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/xa/Makefile.in	2018-11-27 16:22:30.453851169 +0300
+@@ -629,9 +629,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/xvmc: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/state_trackers/xvmc/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/xvmc/Makefile.in
+--- download/mesa-18.2.5/src/gallium/state_trackers/xvmc/Makefile.in	2018-11-15 15:32:43.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/state_trackers/xvmc/Makefile.in	2018-11-27 16:22:30.517851795 +0300
+@@ -645,9 +645,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/d3dadapter9: d3d.pc
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/d3dadapter9: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/targets/d3dadapter9/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/d3dadapter9/Makefile.in
+--- download/mesa-18.2.5/src/gallium/targets/d3dadapter9/Makefile.in	2018-11-15 15:32:43.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/d3dadapter9/Makefile.in	2018-11-27 16:22:30.601852616 +0300
+@@ -255,8 +255,7 @@
+ @HAVE_PLATFORM_ANDROID_TRUE@	$(am__DEPENDENCIES_1)
+ am__DEPENDENCIES_4 = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+ 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2) \
+-	$(am__DEPENDENCIES_3)
++	$(am__DEPENDENCIES_2) $(am__DEPENDENCIES_3)
+ @HAVE_DRISW_KMS_TRUE@am__DEPENDENCIES_5 = $(top_builddir)/src/gallium/winsys/sw/kms-dri/libswkmsdri.la \
+ @HAVE_DRISW_KMS_TRUE@	$(am__DEPENDENCIES_1)
+ am__DEPENDENCIES_6 =  \
+@@ -778,9 +777,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/dri: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/targets/dri/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/dri/Makefile.in
+--- download/mesa-18.2.5/src/gallium/targets/dri/Makefile.in	2018-11-15 15:32:43.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/dri/Makefile.in	2018-11-27 16:22:30.693853515 +0300
+@@ -303,8 +303,7 @@
+ @HAVE_PLATFORM_ANDROID_TRUE@	$(am__DEPENDENCIES_1)
+ am__DEPENDENCIES_4 = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+ 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2) \
+-	$(am__DEPENDENCIES_3)
++	$(am__DEPENDENCIES_2) $(am__DEPENDENCIES_3)
+ @HAVE_DRISW_KMS_TRUE@am__DEPENDENCIES_5 = $(top_builddir)/src/gallium/winsys/sw/kms-dri/libswkmsdri.la \
+ @HAVE_DRISW_KMS_TRUE@	$(am__DEPENDENCIES_1)
+ am__DEPENDENCIES_6 =  \
+@@ -858,9 +857,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/libgl-xlib: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/omx: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/targets/omx/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/omx/Makefile.in
+--- download/mesa-18.2.5/src/gallium/targets/omx/Makefile.in	2018-11-15 15:32:44.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/omx/Makefile.in	2018-11-27 16:22:30.829854845 +0300
+@@ -212,8 +212,7 @@
+ @HAVE_PLATFORM_ANDROID_TRUE@	$(am__DEPENDENCIES_1)
+ am__DEPENDENCIES_4 = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+ 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2) \
+-	$(am__DEPENDENCIES_3)
++	$(am__DEPENDENCIES_2) $(am__DEPENDENCIES_3)
+ @HAVE_ST_OMX_BELLAGIO_TRUE@am__DEPENDENCIES_5 = $(top_builddir)/src/gallium/state_trackers/omx/bellagio/libomxtracker.la \
+ @HAVE_ST_OMX_BELLAGIO_TRUE@	$(am__DEPENDENCIES_1)
+ @HAVE_ST_OMX_BELLAGIO_FALSE@am__DEPENDENCIES_6 = $(top_builddir)/src/gallium/state_trackers/omx/tizonia/libomxtiztracker.la \
+@@ -724,9 +723,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/opencl: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/targets/opencl/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/opencl/Makefile.in
+--- download/mesa-18.2.5/src/gallium/targets/opencl/Makefile.in	2018-11-15 15:32:44.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/opencl/Makefile.in	2018-11-27 16:22:30.881855353 +0300
+@@ -592,9 +592,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/osmesa: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/targets/osmesa/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/osmesa/Makefile.in
+--- download/mesa-18.2.5/src/gallium/targets/osmesa/Makefile.in	2018-11-15 15:32:44.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/osmesa/Makefile.in	2018-11-27 16:22:30.945855979 +0300
+@@ -645,9 +645,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/osmesa: osmesa.pc
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/pipe-loader: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/targets/pipe-loader/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/pipe-loader/Makefile.in
+--- download/mesa-18.2.5/src/gallium/targets/pipe-loader/Makefile.in	2018-11-15 15:32:44.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/pipe-loader/Makefile.in	2018-11-27 16:22:31.041856917 +0300
+@@ -214,8 +214,7 @@
+ @HAVE_PLATFORM_ANDROID_TRUE@	$(am__DEPENDENCIES_1)
+ am__DEPENDENCIES_4 = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+ 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2) \
+-	$(am__DEPENDENCIES_3)
++	$(am__DEPENDENCIES_2) $(am__DEPENDENCIES_3)
+ @HAVE_GALLIUM_LLVM_TRUE@am__DEPENDENCIES_5 = $(am__DEPENDENCIES_1)
+ am__DEPENDENCIES_6 = $(am__append_5) $(am__append_6) $(am__append_7) \
+ 	$(top_builddir)/src/gallium/auxiliary/libgallium.la \
+@@ -790,9 +789,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/va: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/targets/va/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/va/Makefile.in
+--- download/mesa-18.2.5/src/gallium/targets/va/Makefile.in	2018-11-15 15:32:44.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/va/Makefile.in	2018-11-27 16:22:31.117857659 +0300
+@@ -202,8 +202,7 @@
+ @HAVE_PLATFORM_ANDROID_TRUE@	$(am__DEPENDENCIES_1)
+ am__DEPENDENCIES_4 = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+ 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2) \
+-	$(am__DEPENDENCIES_3)
++	$(am__DEPENDENCIES_2) $(am__DEPENDENCIES_3)
+ @HAVE_PLATFORM_X11_TRUE@am__DEPENDENCIES_5 = $(am__DEPENDENCIES_1) \
+ @HAVE_PLATFORM_X11_TRUE@	$(am__DEPENDENCIES_1)
+ @HAVE_DRISW_KMS_TRUE@am__DEPENDENCIES_6 = $(top_builddir)/src/gallium/winsys/sw/kms-dri/libswkmsdri.la \
+@@ -709,9 +708,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/vdpau: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/targets/vdpau/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/vdpau/Makefile.in
+--- download/mesa-18.2.5/src/gallium/targets/vdpau/Makefile.in	2018-11-15 15:32:44.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/vdpau/Makefile.in	2018-11-27 16:22:31.193858402 +0300
+@@ -216,8 +216,7 @@
+ @HAVE_PLATFORM_ANDROID_TRUE@	$(am__DEPENDENCIES_1)
+ am__DEPENDENCIES_4 = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+ 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2) \
+-	$(am__DEPENDENCIES_3)
++	$(am__DEPENDENCIES_2) $(am__DEPENDENCIES_3)
+ @HAVE_DRISW_KMS_TRUE@am__DEPENDENCIES_5 = $(top_builddir)/src/gallium/winsys/sw/kms-dri/libswkmsdri.la \
+ @HAVE_DRISW_KMS_TRUE@	$(am__DEPENDENCIES_1)
+ am__DEPENDENCIES_6 =  \
+@@ -728,9 +727,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/xa: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/targets/xa/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/xa/Makefile.in
+--- download/mesa-18.2.5/src/gallium/targets/xa/Makefile.in	2018-11-15 15:32:44.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/xa/Makefile.in	2018-11-27 16:22:31.273859182 +0300
+@@ -229,8 +229,7 @@
+ @HAVE_PLATFORM_ANDROID_TRUE@	$(am__DEPENDENCIES_1)
+ am__DEPENDENCIES_4 = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+ 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2) \
+-	$(am__DEPENDENCIES_3)
++	$(am__DEPENDENCIES_2) $(am__DEPENDENCIES_3)
+ @HAVE_DRISW_KMS_TRUE@am__DEPENDENCIES_5 = $(top_builddir)/src/gallium/winsys/sw/kms-dri/libswkmsdri.la \
+ @HAVE_DRISW_KMS_TRUE@	$(am__DEPENDENCIES_1)
+ am__DEPENDENCIES_6 =  \
+@@ -739,9 +738,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/xa: xatracker.pc
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/xvmc: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/targets/xvmc/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/xvmc/Makefile.in
+--- download/mesa-18.2.5/src/gallium/targets/xvmc/Makefile.in	2018-11-15 15:32:44.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/targets/xvmc/Makefile.in	2018-11-27 16:22:31.345859887 +0300
+@@ -190,8 +190,7 @@
+ @HAVE_PLATFORM_ANDROID_TRUE@	$(am__DEPENDENCIES_1)
+ am__DEPENDENCIES_4 = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+ 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2) \
+-	$(am__DEPENDENCIES_3)
++	$(am__DEPENDENCIES_2) $(am__DEPENDENCIES_3)
+ @HAVE_DRISW_KMS_TRUE@am__DEPENDENCIES_5 = $(top_builddir)/src/gallium/winsys/sw/kms-dri/libswkmsdri.la \
+ @HAVE_DRISW_KMS_TRUE@	$(am__DEPENDENCIES_1)
+ am__DEPENDENCIES_6 =  \
+@@ -686,9 +685,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/tests/trivial: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/tests/trivial/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/tests/trivial/Makefile.in
+--- download/mesa-18.2.5/src/gallium/tests/trivial/Makefile.in	2018-11-15 15:32:44.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/tests/trivial/Makefile.in	2018-11-27 16:22:31.405860472 +0300
+@@ -134,8 +134,7 @@
+ @HAVE_PLATFORM_ANDROID_TRUE@	$(am__DEPENDENCIES_1)
+ am__DEPENDENCIES_4 = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+ 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2) \
+-	$(am__DEPENDENCIES_3)
++	$(am__DEPENDENCIES_2) $(am__DEPENDENCIES_3)
+ compute_DEPENDENCIES = $(top_builddir)/src/gallium/auxiliary/pipe-loader/libpipe_loader_dynamic.la \
+ 	$(top_builddir)/src/gallium/auxiliary/libgallium.la \
+ 	$(top_builddir)/src/util/libmesautil.la $(am__DEPENDENCIES_4)
+@@ -587,9 +586,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/tests/unit: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/tests/unit/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/tests/unit/Makefile.in
+--- download/mesa-18.2.5/src/gallium/tests/unit/Makefile.in	2018-11-15 15:32:44.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/tests/unit/Makefile.in	2018-11-27 16:22:31.473861137 +0300
+@@ -138,8 +138,7 @@
+ @HAVE_PLATFORM_ANDROID_TRUE@	$(am__DEPENDENCIES_1)
+ am__DEPENDENCIES_4 = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+ 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2) \
+-	$(am__DEPENDENCIES_3)
++	$(am__DEPENDENCIES_2) $(am__DEPENDENCIES_3)
+ pipe_barrier_test_DEPENDENCIES =  \
+ 	$(top_builddir)/src/gallium/auxiliary/libgallium.la \
+ 	$(top_builddir)/src/util/libmesautil.la \
+@@ -635,9 +634,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/amdgpu/drm: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/winsys/amdgpu/drm/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/amdgpu/drm/Makefile.in
+--- download/mesa-18.2.5/src/gallium/winsys/amdgpu/drm/Makefile.in	2018-11-15 15:32:44.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/amdgpu/drm/Makefile.in	2018-11-27 16:22:31.533861723 +0300
+@@ -577,9 +577,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/etnaviv/drm: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/winsys/etnaviv/drm/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/etnaviv/drm/Makefile.in
+--- download/mesa-18.2.5/src/gallium/winsys/etnaviv/drm/Makefile.in	2018-11-15 15:32:44.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/etnaviv/drm/Makefile.in	2018-11-27 16:22:31.589862270 +0300
+@@ -589,9 +589,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/freedreno/drm: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/winsys/freedreno/drm/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/freedreno/drm/Makefile.in
+--- download/mesa-18.2.5/src/gallium/winsys/freedreno/drm/Makefile.in	2018-11-15 15:32:44.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/freedreno/drm/Makefile.in	2018-11-27 16:22:31.645862816 +0300
+@@ -589,9 +589,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/i915/drm: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/winsys/i915/drm/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/i915/drm/Makefile.in
+--- download/mesa-18.2.5/src/gallium/winsys/i915/drm/Makefile.in	2018-11-15 15:32:44.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/i915/drm/Makefile.in	2018-11-27 16:22:31.705863403 +0300
+@@ -596,9 +596,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/imx/drm: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/winsys/imx/drm/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/imx/drm/Makefile.in
+--- download/mesa-18.2.5/src/gallium/winsys/imx/drm/Makefile.in	2018-11-15 15:32:44.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/imx/drm/Makefile.in	2018-11-27 16:22:31.765863990 +0300
+@@ -589,9 +589,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/nouveau/drm: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/winsys/nouveau/drm/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/nouveau/drm/Makefile.in
+--- download/mesa-18.2.5/src/gallium/winsys/nouveau/drm/Makefile.in	2018-11-15 15:32:44.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/nouveau/drm/Makefile.in	2018-11-27 16:22:31.821864537 +0300
+@@ -589,9 +589,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/pl111/drm: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/winsys/pl111/drm/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/pl111/drm/Makefile.in
+--- download/mesa-18.2.5/src/gallium/winsys/pl111/drm/Makefile.in	2018-11-15 15:32:45.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/pl111/drm/Makefile.in	2018-11-27 16:22:31.877865083 +0300
+@@ -589,9 +589,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/radeon/drm: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/winsys/radeon/drm/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/radeon/drm/Makefile.in
+--- download/mesa-18.2.5/src/gallium/winsys/radeon/drm/Makefile.in	2018-11-15 15:32:45.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/radeon/drm/Makefile.in	2018-11-27 16:22:31.937865670 +0300
+@@ -577,9 +577,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/svga/drm: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/winsys/svga/drm/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/svga/drm/Makefile.in
+--- download/mesa-18.2.5/src/gallium/winsys/svga/drm/Makefile.in	2018-11-15 15:32:45.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/svga/drm/Makefile.in	2018-11-27 16:22:31.997866255 +0300
+@@ -618,9 +618,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/sw/dri: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/winsys/sw/dri/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/sw/dri/Makefile.in
+--- download/mesa-18.2.5/src/gallium/winsys/sw/dri/Makefile.in	2018-11-15 15:32:45.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/sw/dri/Makefile.in	2018-11-27 16:22:32.053866802 +0300
+@@ -589,9 +589,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/sw/kms-dri: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/winsys/sw/kms-dri/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/sw/kms-dri/Makefile.in
+--- download/mesa-18.2.5/src/gallium/winsys/sw/kms-dri/Makefile.in	2018-11-15 15:32:45.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/sw/kms-dri/Makefile.in	2018-11-27 16:22:32.113867388 +0300
+@@ -590,9 +590,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/sw/null: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/winsys/sw/null/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/sw/null/Makefile.in
+--- download/mesa-18.2.5/src/gallium/winsys/sw/null/Makefile.in	2018-11-15 15:32:45.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/sw/null/Makefile.in	2018-11-27 16:22:32.169867935 +0300
+@@ -589,9 +589,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/sw/wrapper: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/winsys/sw/wrapper/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/sw/wrapper/Makefile.in
+--- download/mesa-18.2.5/src/gallium/winsys/sw/wrapper/Makefile.in	2018-11-15 15:32:45.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/sw/wrapper/Makefile.in	2018-11-27 16:22:32.225868482 +0300
+@@ -589,9 +589,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/sw/xlib: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/winsys/sw/xlib/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/sw/xlib/Makefile.in
+--- download/mesa-18.2.5/src/gallium/winsys/sw/xlib/Makefile.in	2018-11-15 15:32:45.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/sw/xlib/Makefile.in	2018-11-27 16:22:32.285869067 +0300
+@@ -589,9 +589,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/tegra/drm: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/winsys/tegra/drm/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/tegra/drm/Makefile.in
+--- download/mesa-18.2.5/src/gallium/winsys/tegra/drm/Makefile.in	2018-11-15 15:32:45.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/tegra/drm/Makefile.in	2018-11-27 16:22:32.341869614 +0300
+@@ -567,9 +567,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/v3d/drm: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/winsys/v3d/drm/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/v3d/drm/Makefile.in
+--- download/mesa-18.2.5/src/gallium/winsys/v3d/drm/Makefile.in	2018-11-15 15:32:45.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/v3d/drm/Makefile.in	2018-11-27 16:22:32.397870161 +0300
+@@ -588,9 +588,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/vc4/drm: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/winsys/vc4/drm/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/vc4/drm/Makefile.in
+--- download/mesa-18.2.5/src/gallium/winsys/vc4/drm/Makefile.in	2018-11-15 15:32:45.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/vc4/drm/Makefile.in	2018-11-27 16:22:32.453870708 +0300
+@@ -588,9 +588,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/virgl/drm: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/winsys/virgl/drm/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/virgl/drm/Makefile.in
+--- download/mesa-18.2.5/src/gallium/winsys/virgl/drm/Makefile.in	2018-11-15 15:32:45.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/virgl/drm/Makefile.in	2018-11-27 16:22:32.509871255 +0300
+@@ -591,9 +591,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/virgl/vtest: Makefile
+diff -aur download/mesa-18.2.5/src/gallium/winsys/virgl/vtest/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/virgl/vtest/Makefile.in
+--- download/mesa-18.2.5/src/gallium/winsys/virgl/vtest/Makefile.in	2018-11-15 15:32:45.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gallium/winsys/virgl/vtest/Makefile.in	2018-11-27 16:22:32.569871841 +0300
+@@ -593,9 +593,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gbm/main: gbm.pc
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gbm: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src: git_sha1.h
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/glx/apple: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/glx: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/glx/tests: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/glx/windows: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/glx/windows: windowsdriproto.pc
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/gtest: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/intel: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src: libglsl_util.la
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src: .libs
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/loader: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mapi/es1api: glesv1_cm.pc
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mapi/es2api: glesv2.pc
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mapi/glapi: .dirstamp
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mapi/glapi/gen: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mapi/glapi: libglapi.la
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mapi/glapi: .libs
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mapi: glapi_libglapi_la-entry.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mapi: glapi_libglapi_la-entry.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mapi: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mapi/shared-glapi: .dirstamp
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mapi/shared-glapi: libglapi.la
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mapi/shared-glapi: .libs
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mapi: shared_glapi_libglapi_la-entry.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mapi: shared_glapi_libglapi_la-entry.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mapi: shared_glapi_libglapi_la-mapi_glapi.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mapi: shared_glapi_libglapi_la-mapi_glapi.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mapi: shared_glapi_libglapi_la-stub.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mapi: shared_glapi_libglapi_la-stub.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mapi: shared_glapi_libglapi_la-table.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mapi: shared_glapi_libglapi_la-table.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mapi: shared_glapi_libglapi_la-u_current.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mapi: shared_glapi_libglapi_la-u_current.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mapi: shared_glapi_libglapi_la-u_execmem.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mapi: shared_glapi_libglapi_la-u_execmem.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/drivers/dri/common: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/drivers/dri: dri.pc
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/drivers/dri/i915: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/drivers/dri/i965: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/drivers/dri: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/drivers/dri/nouveau: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/drivers/dri/r200: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/drivers/dri/radeon: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/drivers/dri/swrast: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/drivers/osmesa: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/drivers/osmesa: osmesa.pc
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/drivers/x11: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa: gl.pc
+diff -aur download/mesa-18.2.5/src/mesa/main/compiler.h ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/main/compiler.h
+--- download/mesa-18.2.5/src/mesa/main/compiler.h	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/main/compiler.h	2018-11-27 16:22:09.005640156 +0300
+@@ -40,6 +40,13 @@
+ 
+ #include "c99_compat.h" /* inline, __func__, etc. */
+ 
++#if defined(__EMBOX__)
++#ifdef __GNUC__
++#define _NORETURN __attribute__ ((noreturn))
++#else
++#define _NORETURN
++#endif /* __GNUC__ */
++#endif /* __EMBOX__ */
+ 
+ /**
+  * Either define MESA_BIG_ENDIAN or MESA_LITTLE_ENDIAN, and CPU_TO_LE32.
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/main: compiler.h.orig
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/main: .deps
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/main: .dirstamp
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/main: extensions_table.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/main: extensions_table.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/main: imports.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/main: imports.o
+diff -aur download/mesa-18.2.5/src/mesa/main/mm.h ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/main/mm.h
+--- download/mesa-18.2.5/src/mesa/main/mm.h	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/main/mm.h	2018-11-27 16:22:09.005640156 +0300
+@@ -38,8 +38,13 @@
+    struct mem_block *heap;
+    unsigned ofs;
+    unsigned size;
++#if !defined(__EMBOX__)
+    unsigned free:1;
+    unsigned reserved:1;
++#else
++   unsigned free;
++   unsigned reserved;
++#endif
+ };
+ 
+ 
+diff -aur download/mesa-18.2.5/src/mesa/main/mtypes.h ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/main/mtypes.h
+--- download/mesa-18.2.5/src/mesa/main/mtypes.h	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/main/mtypes.h	2018-11-27 16:22:09.017640275 +0300
+@@ -1420,12 +1420,12 @@
+    GLenum16 Format;         /**< Default: GL_RGBA, but may be GL_BGRA */
+    GLboolean Enabled;       /**< Whether the array is enabled */
+    GLubyte Size;            /**< Components per element (1,2,3,4) */
+-   unsigned Normalized:1;   /**< Fixed-point values are normalized when converted to floats */
+-   unsigned Integer:1;      /**< Fixed-point values are not converted to floats */
+-   unsigned Doubles:1;      /**< double precision values are not converted to floats */
+-   unsigned _ElementSize:8; /**< Size of each element in bytes */
++   unsigned Normalized;   /**< Fixed-point values are normalized when converted to floats */
++   unsigned Integer;      /**< Fixed-point values are not converted to floats */
++   unsigned Doubles;      /**< double precision values are not converted to floats */
++   unsigned _ElementSize; /**< Size of each element in bytes */
+    /** Index into gl_vertex_array_object::BufferBinding[] array */
+-   unsigned BufferBindingIndex:6;
++   unsigned BufferBindingIndex;
+ 
+    /**
+     * Derived effective buffer binding index
+@@ -1440,7 +1440,7 @@
+     * Note that _mesa_update_vao_derived_arrays is called when binding
+     * the VAO to Array._DrawVAO.
+     */
+-   unsigned _EffBufferBindingIndex:6;
++   unsigned _EffBufferBindingIndex;
+    /**
+     * Derived effective relative offset.
+     *
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/main/tests: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/program: .deps
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/program: .dirstamp
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/program: dummy_errors.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/program: dummy_errors.o
+diff -aur download/mesa-18.2.5/src/mesa/program/prog_instruction.h ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/program/prog_instruction.h
+--- download/mesa-18.2.5/src/mesa/program/prog_instruction.h	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/program/prog_instruction.h	2018-11-27 16:22:09.005640156 +0300
+@@ -223,7 +223,7 @@
+    enum prog_opcode Opcode;
+    struct prog_src_register SrcReg[3];
+    struct prog_dst_register DstReg;
+-
++#if !defined(__EMBOX__)
+    /**
+     * Saturate each value of the vectored result to the range [0,1].
+     *
+@@ -245,8 +245,30 @@
+    /** True if tex instruction should do shadow comparison */
+    GLuint TexShadow:1;
+    /*@}*/
++#else
++   /**
++    * Saturate each value of the vectored result to the range [0,1].
++    *
++    * \since
++    * ARB_fragment_program
++    */
++   GLuint Saturate;
+ 
+    /**
++    * \name Extra fields for TEX, TXB, TXD, TXL, TXP instructions.
++    */
++   /*@{*/
++   /** Source texture unit. */
++   GLuint TexSrcUnit;
++
++   /** Source texture target, one of TEXTURE_{1D,2D,3D,CUBE,RECT}_INDEX */
++   GLuint TexSrcTarget;
++
++   /** True if tex instruction should do shadow comparison */
++   GLuint TexShadow;
++   /*@}*/
++#endif 
++   /**
+     * For BRA and CAL instructions, the location to jump to.
+     * For BGNLOOP, points to ENDLOOP (and vice-versa).
+     * For BRK, points to ENDLOOP
+diff -aur download/mesa-18.2.5/src/mesa/program/prog_parameter.h ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/program/prog_parameter.h
+--- download/mesa-18.2.5/src/mesa/program/prog_parameter.h	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/program/prog_parameter.h	2018-11-27 16:22:09.013640235 +0300
+@@ -91,7 +91,7 @@
+ struct gl_program_parameter
+ {
+    const char *Name;        /**< Null-terminated string */
+-   gl_register_file Type:16;  /**< PROGRAM_CONSTANT or STATE_VAR */
++   gl_register_file Type;  /**< PROGRAM_CONSTANT or STATE_VAR */
+    GLenum16 DataType;         /**< GL_FLOAT, GL_FLOAT_VEC2, etc */
+    /**
+     * Number of components (1..4), or more.
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/program: prog_parameter.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/program: prog_parameter.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/program: symbol_table.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/program: symbol_table.o
+diff -aur download/mesa-18.2.5/src/mesa/state_tracker/st_glsl_to_tgsi.cpp ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/state_tracker/st_glsl_to_tgsi.cpp
+--- download/mesa-18.2.5/src/mesa/state_tracker/st_glsl_to_tgsi.cpp	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/state_tracker/st_glsl_to_tgsi.cpp	2018-11-27 16:22:09.021640314 +0300
+@@ -58,7 +58,7 @@
+ #include "st_glsl_to_tgsi_temprename.h"
+ 
+ #include "util/hash_table.h"
+-#include <algorithm>
++//#include <algorithm>
+ 
+ #define PROGRAM_ANY_CONST ((1 << PROGRAM_STATE_VAR) |    \
+                            (1 << PROGRAM_CONSTANT) |     \
+@@ -4139,7 +4139,7 @@
+ 
+    return offset;
+ }
+- 
++
+ bool
+ glsl_to_tgsi_visitor::handle_bound_deref(ir_dereference *ir)
+ {
+@@ -6347,7 +6347,7 @@
+ {
+    sort_inout_decls sorter;
+    sorter.mapping = mapping;
+-   std::sort(decls, decls + count, sorter);
++   //std::sort(decls, decls + count, sorter);
+ }
+ 
+ static enum tgsi_interpolate_mode
+diff -aur download/mesa-18.2.5/src/mesa/state_tracker/st_glsl_to_tgsi_private.cpp ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/state_tracker/st_glsl_to_tgsi_private.cpp
+--- download/mesa-18.2.5/src/mesa/state_tracker/st_glsl_to_tgsi_private.cpp	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/state_tracker/st_glsl_to_tgsi_private.cpp	2018-11-27 16:22:09.021640314 +0300
+@@ -217,7 +217,7 @@
+ }
+ 
+ static const char swz_txt[] = "xyzw";
+-
++#if 0
+ std::ostream& operator << (std::ostream& os, const st_src_reg& reg)
+ {
+    if (reg.negate)
+@@ -253,7 +253,7 @@
+       os << "|";
+    return os;
+ }
+-
++#endif
+ st_dst_reg::st_dst_reg(st_src_reg reg)
+ {
+    this->type = reg.type;
+@@ -357,7 +357,7 @@
+ 
+    return result;
+ }
+-
++#if 0
+ std::ostream& operator << (std::ostream& os, const st_dst_reg& reg)
+ {
+    os << _mesa_register_file_name(reg.file);
+@@ -416,3 +416,4 @@
+       }
+    }
+ }
++#endif
+diff -aur download/mesa-18.2.5/src/mesa/state_tracker/st_glsl_to_tgsi_private.h ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/state_tracker/st_glsl_to_tgsi_private.h
+--- download/mesa-18.2.5/src/mesa/state_tracker/st_glsl_to_tgsi_private.h	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/state_tracker/st_glsl_to_tgsi_private.h	2018-11-27 16:22:09.021640314 +0300
+@@ -31,7 +31,7 @@
+ #include "compiler/glsl_types.h"
+ #include "compiler/glsl/ir.h"
+ #include "tgsi/tgsi_info.h"
+-#include <ostream>
++//#include <ostream>
+ 
+ int swizzle_for_size(int size);
+ 
+@@ -88,7 +88,7 @@
+ 
+ bool operator == (const st_src_reg& lhs, const st_src_reg& rhs);
+ 
+-std::ostream& operator << (std::ostream& os, const st_src_reg& reg);
++//std::ostream& operator << (std::ostream& os, const st_src_reg& reg);
+ 
+ class st_dst_reg {
+ public:
+@@ -117,7 +117,7 @@
+ 
+ bool operator == (const st_dst_reg& lhs, const st_dst_reg& rhs);
+ 
+-std::ostream& operator << (std::ostream& os, const st_dst_reg& reg);
++//std::ostream& operator << (std::ostream& os, const st_dst_reg& reg);
+ 
+ 
+ class glsl_to_tgsi_instruction : public exec_node {
+@@ -148,15 +148,15 @@
+ 
+    const struct tgsi_opcode_info *info;
+ 
+-   void print(std::ostream& os) const;
++ //  void print(std::ostream& os) const;
+ };
+ 
+-inline std::ostream&
++/* inline std::ostream&
+ operator << (std::ostream& os, const glsl_to_tgsi_instruction& instr)
+ {
+    instr.print(os);
+    return os;
+-}
++} */
+ 
+ struct rename_reg_pair {
+    bool valid;
+diff -aur download/mesa-18.2.5/src/mesa/state_tracker/st_glsl_to_tgsi_temprename.cpp ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/state_tracker/st_glsl_to_tgsi_temprename.cpp
+--- download/mesa-18.2.5/src/mesa/state_tracker/st_glsl_to_tgsi_temprename.cpp	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/state_tracker/st_glsl_to_tgsi_temprename.cpp	2018-11-27 16:22:09.021640314 +0300
+@@ -26,11 +26,11 @@
+ #include "tgsi/tgsi_strings.h"
+ #include "program/prog_instruction.h"
+ #include "util/bitscan.h"
+-#include <limits>
++//#include <limits>
+ #include <cstdlib>
+ 
+ /* std::sort is significantly faster than qsort */
+-#define USE_STL_SORT
++//#define USE_STL_SORT
+ #ifdef USE_STL_SORT
+ #include <algorithm>
+ #endif
+@@ -52,7 +52,7 @@
+ #undef max
+ #endif
+ 
+-using std::numeric_limits;
++//using std::numeric_limits;
+ 
+ /* Without c++11 define the nullptr for forward-compatibility
+  * and better readibility */
+@@ -218,11 +218,11 @@
+    bool was_written_in_current_else_scope;
+ };
+ 
+-const int
+-temp_comp_access::conditionality_untouched = numeric_limits<int>::max();
++//const int
++//temp_comp_access::conditionality_untouched = numeric_limits<int>::max();
+ 
+-const int
+-temp_comp_access::write_is_unconditional = numeric_limits<int>::max() - 1;
++//const int
++//temp_comp_access::write_is_unconditional = numeric_limits<int>::max() - 1;
+ 
+ /* Class to track the access to all components of a temporary register. */
+ class temp_access {
+@@ -266,7 +266,7 @@
+    scope_nesting_depth(depth),
+    scope_begin(scope_begin),
+    scope_end(-1),
+-   break_loop_line(numeric_limits<int>::max()),
++//   break_loop_line(numeric_limits<int>::max()),
+    parent_scope(parent)
+ {
+ }
+@@ -551,8 +551,8 @@
+    first_write(-1),
+    last_read(-1),
+    last_write(-1),
+-   first_read(numeric_limits<int>::max()),
+-   conditionality_in_loop_id(conditionality_untouched),
++//   first_read(numeric_limits<int>::max()),
++//   conditionality_in_loop_id(conditionality_untouched),
+    if_scope_write_flags(0),
+    next_ifelse_nesting_depth(0),
+    current_unpaired_if_write_scope(nullptr),
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/state_tracker/tests: Makefile
+diff -aur download/mesa-18.2.5/src/mesa/state_tracker/tests/Makefile.in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/state_tracker/tests/Makefile.in
+--- download/mesa-18.2.5/src/mesa/state_tracker/tests/Makefile.in	2018-11-15 15:32:47.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/state_tracker/tests/Makefile.in	2018-11-27 16:22:34.673892369 +0300
+@@ -142,8 +142,7 @@
+ @HAVE_PLATFORM_ANDROID_TRUE@	$(am__DEPENDENCIES_1)
+ am__DEPENDENCIES_4 = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+ 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2) \
+-	$(am__DEPENDENCIES_3)
++	$(am__DEPENDENCIES_2) $(am__DEPENDENCIES_3)
+ st_renumerate_test_DEPENDENCIES = libmesa-st-tests-common.a \
+ 	$(top_builddir)/src/mesa/libmesagallium.la \
+ 	$(top_builddir)/src/mapi/shared-glapi/libglapi.la \
+@@ -816,9 +815,8 @@
+ 	$(LIBDRM_CFLAGS) \
+ 	$(VISIBILITY_CFLAGS)
+ 
+-GALLIUM_COMMON_LIB_DEPS = -lm $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
+-	$(CLOCK_LIB) $(PTHREAD_LIBS) $(DLOPEN_LIBS) $(am__append_1) \
+-	$(am__append_2)
++GALLIUM_COMMON_LIB_DEPS = $(LIBUNWIND_LIBS) $(LIBSENSORS_LIBS) \
++	$(CLOCK_LIB) $(DLOPEN_LIBS) $(am__append_1) $(am__append_2)
+ GALLIUM_WINSYS_CFLAGS = \
+ 	-I$(top_srcdir)/src \
+ 	-I$(top_srcdir)/include \
+diff -aur download/mesa-18.2.5/src/mesa/vbo/vbo.h ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/vbo/vbo.h
+--- download/mesa-18.2.5/src/mesa/vbo/vbo.h	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/mesa/vbo/vbo.h	2018-11-27 16:22:09.017640275 +0300
+@@ -42,14 +42,14 @@
+ 
+ struct _mesa_prim
+ {
+-   GLuint mode:8;    /**< GL_POINTS, GL_LINES, GL_QUAD_STRIP, etc */
+-   GLuint indexed:1;
+-   GLuint begin:1;
+-   GLuint end:1;
+-   GLuint weak:1;
+-   GLuint no_current_update:1;
+-   GLuint is_indirect:1;
+-   GLuint pad:18;
++   GLuint mode;    /**< GL_POINTS, GL_LINES, GL_QUAD_STRIP, etc */
++   GLuint indexed;
++   GLuint begin;
++   GLuint end;
++   GLuint weak;
++   GLuint no_current_update;
++   GLuint is_indirect;
++   GLuint pad;
+ 
+    GLuint start;
+    GLuint count;
+diff -aur download/mesa-18.2.5/src/util/build_id.c ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util/build_id.c
+--- download/mesa-18.2.5/src/util/build_id.c	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util/build_id.c	2018-11-27 16:22:09.013640235 +0300
+@@ -21,7 +21,7 @@
+  * IN THE SOFTWARE.
+  */
+ 
+-#ifdef HAVE_DL_ITERATE_PHDR
++#if 0
+ #include <dlfcn.h>
+ #include <link.h>
+ #include <stddef.h>
+diff -aur download/mesa-18.2.5/src/util/crc32.c ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util/crc32.c
+--- download/mesa-18.2.5/src/util/crc32.c	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util/crc32.c	2018-11-27 16:22:09.013640235 +0300
+@@ -33,6 +33,7 @@
+  */
+ 
+ 
++#undef HAVE_ZLIB
+ #ifdef HAVE_ZLIB
+ #include <zlib.h>
+ #endif
+diff -aur download/mesa-18.2.5/src/util/debug.c ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util/debug.c
+--- download/mesa-18.2.5/src/util/debug.c	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util/debug.c	2018-11-27 16:22:09.005640156 +0300
+@@ -21,6 +21,7 @@
+  * IN THE SOFTWARE.
+  */
+ 
++#include <strings.h>
+ #include <string.h>
+ #include "main/macros.h"
+ #include "debug.h"
+diff -aur download/mesa-18.2.5/src/util/disk_cache.c ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util/disk_cache.c
+--- download/mesa-18.2.5/src/util/disk_cache.c	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util/disk_cache.c	2018-11-27 16:22:09.013640235 +0300
+@@ -21,7 +21,7 @@
+  * IN THE SOFTWARE.
+  */
+ 
+-#ifdef ENABLE_SHADER_CACHE
++#if 0
+ 
+ #include <ctype.h>
+ #include <ftw.h>
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil.la
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-bitscan.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-bitscan.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-build_id.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-build_id.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-crc32.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-crc32.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-debug.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-debug.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-disk_cache.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-disk_cache.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-format_srgb.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-format_srgb.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-half_float.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-half_float.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-hash_table.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-hash_table.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-mesa-sha1.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-mesa-sha1.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-os_time.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-os_time.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-ralloc.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-ralloc.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-rand_xor.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-rand_xor.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-rb_tree.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-rb_tree.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-register_allocate.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-register_allocate.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-rgtc.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-rgtc.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-set.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-set.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-slab.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-slab.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-string_buffer.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-string_buffer.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-strtod.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-strtod.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-u_atomic.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-u_atomic.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-u_process.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-u_process.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-u_queue.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-u_queue.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-u_vector.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-u_vector.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-vma.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libmesautil_la-vma.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: .libs
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libxmlconfig.la
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libxmlconfig_la-xmlconfig.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: libxmlconfig_la-xmlconfig.o
+diff -aur download/mesa-18.2.5/src/util/macros.h ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util/macros.h
+--- download/mesa-18.2.5/src/util/macros.h	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util/macros.h	2018-11-27 16:22:09.013640235 +0300
+@@ -63,7 +63,6 @@
+  */
+ #define STATIC_ASSERT(COND) \
+    do { \
+-      (void) sizeof(char [1 - 2*!(COND)]); \
+    } while (0)
+ 
+ 
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util: Makefile
+diff -aur download/mesa-18.2.5/src/util/os_time.c ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util/os_time.c
+--- download/mesa-18.2.5/src/util/os_time.c	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util/os_time.c	2018-11-27 16:22:09.005640156 +0300
+@@ -28,7 +28,7 @@
+ /**
+  * @file
+  * OS independent time-manipulation functions.
+- * 
++ *
+  * @author Jose Fonseca <jfonseca@vmware.com>
+  */
+ 
+@@ -39,6 +39,8 @@
+ 
+ #include "util/u_atomic.h"
+ 
++#define PIPE_OS_UNIX
++
+ #if defined(PIPE_OS_UNIX)
+ #  include <unistd.h> /* usleep */
+ #  include <time.h> /* timeval */
+diff -aur download/mesa-18.2.5/src/util/ralloc.c ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util/ralloc.c
+--- download/mesa-18.2.5/src/util/ralloc.c	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util/ralloc.c	2018-11-27 16:22:09.005640156 +0300
+@@ -61,10 +61,8 @@
+ #endif
+    ralloc_header
+ {
+-#ifndef NDEBUG
+    /* A canary value used to determine whether a pointer is ralloc'd. */
+    unsigned canary;
+-#endif
+ 
+    struct ralloc_header *parent;
+ 
+@@ -633,8 +631,9 @@
+    linear_header *new_node;
+    linear_size_chunk *ptr;
+    unsigned full_size;
+-
++#ifdef DEBUG
+    assert(first->magic == LMAGIC);
++#endif
+    assert(!latest->next);
+ 
+    size = ALIGN_POT(size, SUBALLOC_ALIGNMENT);
+@@ -708,7 +707,9 @@
+       return;
+ 
+    node = LINEAR_PARENT_TO_HEADER(ptr);
++#ifdef DEBUG
+    assert(node->magic == LMAGIC);
++#endif
+ 
+    while (node) {
+       void *ptr = node;
+@@ -727,7 +728,9 @@
+       return;
+ 
+    node = LINEAR_PARENT_TO_HEADER(ptr);
++#ifdef DEBUG
+    assert(node->magic == LMAGIC);
++#endif
+ 
+    while (node) {
+       ralloc_steal(new_ralloc_ctx, node);
+@@ -740,7 +743,9 @@
+ ralloc_parent_of_linear_parent(void *ptr)
+ {
+    linear_header *node = LINEAR_PARENT_TO_HEADER(ptr);
++#ifdef DEBUG
+    assert(node->magic == LMAGIC);
++#endif
+    return node->ralloc_parent;
+ }
+ 
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util/sha1: .deps
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util/sha1: .dirstamp
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util/sha1: libmesautil_la-sha1.lo
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util/sha1: libmesautil_la-sha1.o
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util/tests/hash_table: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util/tests/set: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util/tests/string_buffer: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util/tests/vma: Makefile
+diff -aur download/mesa-18.2.5/src/util/u_thread.h ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util/u_thread.h
+--- download/mesa-18.2.5/src/util/u_thread.h	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util/u_thread.h	2018-11-27 16:22:09.005640156 +0300
+@@ -105,7 +105,7 @@
+  * util_barrier
+  */
+ 
+-#if defined(HAVE_PTHREAD) && !defined(__APPLE__)
++#if 0
+ 
+ typedef pthread_barrier_t util_barrier;
+ 
+diff -aur download/mesa-18.2.5/src/util/xmlconfig.c ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util/xmlconfig.c
+--- download/mesa-18.2.5/src/util/xmlconfig.c	2018-11-15 15:32:30.000000000 +0300
++++ ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util/xmlconfig.c	2018-11-27 16:22:09.005640156 +0300
+@@ -31,7 +31,7 @@
+ #include <stdio.h>
+ #include <string.h>
+ #include <assert.h>
+-#include <expat.h>
++//#include <expat.h>
+ #include <fcntl.h>
+ #include <math.h>
+ #include <unistd.h>
+@@ -39,6 +39,7 @@
+ #include "xmlconfig.h"
+ #include "u_process.h"
+ 
++#if 0
+ 
+ /** \brief Find an option in an option cache with the name as key */
+ static uint32_t
+@@ -1038,3 +1039,5 @@
+     assert (cache->info[i].type == DRI_STRING);
+     return cache->values[i]._string;
+ }
++
++#endif
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/util/xmlpool: Makefile
+Only in ./build/extbld/third_party/freedesktop/mesa/mesa_etnaviv/mesa-18.2.5/src/vulkan: Makefile
