@@ -1,0 +1,12 @@
+--- configure	2017-04-01 18:33:50.000000000 +0300
++++ configure	2018-09-26 15:32:16.970134475 +0300
+@@ -23174,9 +23174,6 @@
+ 
+ 
+ if test "x$enable_gallium_osmesa" = xyes; then
+-    if ! echo "$with_gallium_drivers" | grep -q 'swrast'; then
+-        as_fn_error $? "gallium_osmesa requires the gallium swrast driver" "$LINENO" 5
+-    fi
+     if test "x$enable_osmesa" = xyes; then
+         as_fn_error $? "Cannot enable both classic and Gallium OSMesa implementations" "$LINENO" 5
+     fi
