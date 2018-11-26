@@ -98,9 +98,9 @@ static uint8_t cmd_length[32] = {
 };
 
 bool etnaviv_cmd_validate_one(struct etnaviv_gpu *gpu, uint32_t *stream,
-			      unsigned int size,
-			      struct drm_etnaviv_gem_submit_reloc *relocs,
-			      unsigned int reloc_size)
+		unsigned int size,
+		struct drm_etnaviv_gem_submit_reloc *relocs,
+		unsigned int reloc_size)
 {
 	struct etna_validation_state state;
 	uint32_t *buf = stream;
@@ -118,37 +118,149 @@ bool etnaviv_cmd_validate_one(struct etnaviv_gpu *gpu, uint32_t *stream,
 		unsigned int len, n, off;
 		unsigned int op = cmd >> 27;
 		log_debug("buf(%p) cmd(%x) op(%x)", buf, cmd, op);
+#if 1
+		if (cmd == 0x08020193) {
+			uint32_t *a = *(buf + 1);
+			a += 0x10000000 / 4;
 
+			//			*(buf + 1) -= 12;
+
+			log_debug("vertex buffer %p", a);
+			log_debug("%08x %08x %08x %08x",
+					a[0], a[1], a[2], a[3]);
+			log_debug("%08x %08x %08x %08x",
+					a[4], a[5], a[6], a[7]);
+			log_debug("%08x %08x %08x %08x",
+					a[8], a[9], a[10], a[11]);
+			log_debug("%08x %08x %08x %08x",
+					a[12], a[13], a[14], a[15]);
+			log_debug("%08x %08x",
+					a[16], a[17]);
+			float *f = &a[0];
+			f[0] = 0.000000;
+			f[1] = -0.900000;
+			f[2] = 0.000000;
+
+			f[3] = 0.000000;
+			f[4] = 0.000000;
+			f[5] = 1.000000;
+
+			f[6] = 1.000000;
+			f[7] = 1.000000;
+			f[8] = 0.000000;
+
+
+			f[9] = -0.900000;
+			f[10] = 0.900000;
+			f[11] = 0.000000;
+
+			f[12] = 0.000000;
+			f[13] = 0.000000;
+			f[14] = 1.000000;
+
+			f[15] = 0.000000;
+			f[16] = 1.000000;
+			f[17] = 0.000000;
+
+
+			f[18] = 0.900000;
+			f[19] = 0.900000;
+			f[20] = 0.000000;
+
+			f[21] = 0.000000;
+			f[22] = 0.000000;
+			f[23] = 1.000000;
+
+			f[24] = 0.000000;
+			f[25] = 1.000000;
+			f[26] = 1.000000;
+	//		f[24] = 0.000000;
+
+
+
+			//			a[15] = 0x3dcccccd;
+			//			a[16] = 0x3e4ccccd;
+			//			a[17] = 0x3e99999a;
+
+			for (int i = -18; i < 30; i++) {
+				float *f = &a[i];
+				log_debug("[%3d]f=%f x=%8x", i, *f, a[i]);
+
+				if (0 && *f > 0.01 && *f < 0.9) {
+					a[i] = 0;
+					//	((a[i] & 0xffff) << 16) | (a[i] >> 16);
+					/*	((a[i] & 0xff) << 24) |
+						(((a[i] >> 8)  & 0xff) << 16) |
+						(((a[i] >> 16) & 0xff) << 8) |
+						((a[i] >> 24) & 0xff); */
+					log_debug("change to x=%8x", a[i]);
+				}
+
+				dcache_flush(f, 4);
+
+				continue;
+				if (*f > 0.01) {
+					*f /= 2;
+				} else {
+					a[i] >>= 1;
+				}
+
+				a[i] = 0;
+
+				dcache_flush(f, 4);
+			}
+
+		}
+#if 0
+		if (cmd == 0x08020193) {
+			*(buf + 2) = 4 * 6;
+		}
+
+		if (cmd == 0x08020e07) {
+			//		*(buf + 1) = *(buf + 2) = 4;
+		}
+#if 0
+		if (cmd == 0x08010180) {
+			uint32_t *a = buf + 1;
+
+			log_debug("vertex config prev %x", a[0]);
+			a[0] &= ~0xf0;
+			log_debug("vertex config new %x", a[0]);
+			dcache_flush(a, 4);
+		}
+#endif
+#endif
+#endif
 		switch (op) {
-		case FE_OPCODE_LOAD_STATE:
-			n = EXTRACT(cmd, VIV_FE_LOAD_STATE_HEADER_COUNT);
-			len = ALIGN(1 + n, 2);
-			log_debug("FE_OPCODE_LOAD_STATE: n(%x) len(%x) end(%x)", n, len, end);
-			if (buf + len > end)
+			case FE_OPCODE_LOAD_STATE:
+				n = EXTRACT(cmd, VIV_FE_LOAD_STATE_HEADER_COUNT);
+				len = ALIGN(1 + n, 2);
+				log_debug("FE_OPCODE_LOAD_STATE: n(%x) len(%x) end(%x)", n, len, end);
+				if (buf + len > end)
+					break;
+
+				off = EXTRACT(cmd, VIV_FE_LOAD_STATE_HEADER_OFFSET);
+				log_debug("FE_OPCODE_LOAD_STATE: n(%x) cmd(%x) off(%x)", n, len, off);
 				break;
 
-			off = EXTRACT(cmd, VIV_FE_LOAD_STATE_HEADER_OFFSET);
-			log_debug("FE_OPCODE_LOAD_STATE: n(%x) cmd(%x) off(%x)", n, len, off);
-			break;
+			case FE_OPCODE_DRAW_2D:
+				n = EXTRACT(cmd, VIV_FE_DRAW_2D_HEADER_COUNT);
+				if (n == 0)
+					n = 256;
+				len = 2 + n * 2;
+				log_debug("FE_OPCODE_DRAW_2D: n(%x) len(%x)", n, len);
+				break;
 
-		case FE_OPCODE_DRAW_2D:
-			n = EXTRACT(cmd, VIV_FE_DRAW_2D_HEADER_COUNT);
-			if (n == 0)
-				n = 256;
-			len = 2 + n * 2;
-			log_debug("FE_OPCODE_DRAW_2D: n(%x) len(%x)", n, len);
-			break;
-
-		default:
-			len = cmd_length[op];
-			log_debug("default: n(%x) len(%x) op(%x)", n, len, op);
-			if (len == 0) {
-				log_error("%s: op %u not permitted at offset %tu\n",
-					__func__, op, buf - state.start);
-				len = 0; /* Treat as NOP */
-				buf = end;
-			}
-			break;
+			default:
+				len = cmd_length[op];
+				log_debug("default: n(%x) len(%x) op(%x)", n, len, op);
+				if (len == 0) {
+					log_error("%s: op %u not permitted at offset %tu\n",
+							__func__, op, buf - state.start);
+					len = 0; /* Treat as NOP */
+					buf = end;
+				}
+				break;
 		}
 
 		buf += len;
@@ -156,7 +268,7 @@ bool etnaviv_cmd_validate_one(struct etnaviv_gpu *gpu, uint32_t *stream,
 
 	if (buf > end) {
 		log_error("%s: commands overflow end of buffer: %tu > %u\n",
-			__func__, buf - state.start, size);
+				__func__, buf - state.start, size);
 		return false;
 	}
 
