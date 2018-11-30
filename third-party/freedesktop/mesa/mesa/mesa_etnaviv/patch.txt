@@ -368,17 +368,6 @@ diff -aur mesa-18.2.5-orig/src/util/disk_cache.c mesa-18.2.5/src/util/disk_cache
  
  #include <ctype.h>
  #include <ftw.h>
-diff -aur mesa-18.2.5-orig/src/util/macros.h mesa_osmesa/mesa-18.2.5/src/util/macros.h
---- mesa-18.2.5-orig/src/util/macros.h	2018-11-15 15:32:30.000000000 +0300
-+++ mesa-18.2.5/src/util/macros.h	2018-11-26 16:57:09.087062100 +0300
-@@ -63,7 +63,6 @@
-  */
- #define STATIC_ASSERT(COND) \
-    do { \
--      (void) sizeof(char [1 - 2*!(COND)]); \
-    } while (0)
- 
- 
 diff -aur mesa-18.2.5-orig/src/util/build_id.c mesa-18.2.5/src/util/build_id.c
 --- mesa-18.2.5-orig/src/util/build_id.c	2018-11-15 15:32:30.000000000 +0300
 +++ mesa-18.2.5/src/util/build_id.c	2018-11-26 17:43:40.410165708 +0300
