@@ -1139,3 +1139,23 @@ diff -aur mesa-18.2.5-orig/src/gallium/auxiliary/pipe-loader/pipe_loader_sw.c me
  #include "state_tracker/drisw_api.h"
  #include "state_tracker/sw_driver.h"
  #include "state_tracker/sw_winsys.h"
+diff -aur mesa-18.2.5-orig/src/util/macros.h mesa-18.2.5/src/util/macros.h
+--- mesa-18.2.5-orig/src/util/macros.h	2018-11-15 15:32:30.000000000 +0300
++++ mesa-18.2.5/src/util/macros.h	2018-11-30 19:56:38.935477971 +0300
+@@ -63,7 +63,6 @@
+  */
+ #define STATIC_ASSERT(COND) \
+    do { \
+-      (void) sizeof(char [1 - 2*!(COND)]); \
+    } while (0)
+ 
+ 
+@@ -292,7 +291,7 @@
+  * Macro for declaring an explicit conversion operator.  Defaults to an
+  * implicit conversion if C++11 is not supported.
+  */
+-#if __cplusplus >= 201103L
++#if 0
+ #define EXPLICIT_CONVERSION explicit
+ #elif defined(__cplusplus)
+ #define EXPLICIT_CONVERSION
