@@ -832,132 +832,48 @@ diff -aur mesa-18.2.5-orig/src/mesa/state_tracker/st_glsl_to_tgsi_temprename.cpp
  
  /* Without c++11 define the nullptr for forward-compatibility
   * and better readibility */
-@@ -218,11 +218,14 @@
+@@ -196,9 +196,9 @@
+    /* Helper constants to make the tracking code more readable. */
+    static const int write_is_conditional = -1;
+    static const int conditionality_unresolved = 0;
+-   static const int conditionality_untouched;
+-   static const int write_is_unconditional;
++static const int conditionality_untouched = 0x3FFFFFFF;
+ 
++static const int write_is_unconditional = 0x3FFFFFFF - 1;
+    /* A bit field tracking the nexting levels of if-else clauses where the
+     * temporary has (so far) been written to in the if branch, but not in the
+     * else branch.
+@@ -218,11 +218,7 @@
     bool was_written_in_current_else_scope;
  };
  
 -const int
 -temp_comp_access::conditionality_untouched = numeric_limits<int>::max();
-+static const int write_is_conditional = 0xcafe;
-+static const int write_is_unconditional = 0xdead;
-+static const int conditionality_untouched = 0xbeef;
-+//const int
-+//temp_comp_access::conditionality_untouched = numeric_limits<int>::max();
  
 -const int
 -temp_comp_access::write_is_unconditional = numeric_limits<int>::max() - 1;
-+//const int
-+//temp_comp_access::write_is_unconditional = numeric_limits<int>::max() - 1;
  
  /* Class to track the access to all components of a temporary register. */
  class temp_access {
-@@ -266,7 +269,7 @@
+@@ -266,7 +262,7 @@
     scope_nesting_depth(depth),
     scope_begin(scope_begin),
     scope_end(-1),
 -   break_loop_line(numeric_limits<int>::max()),
-+//   break_loop_line(numeric_limits<int>::max()),
++   break_loop_line(0x3FFFFFFF),
     parent_scope(parent)
  {
  }
-@@ -355,12 +358,6 @@
- 
- const prog_scope *prog_scope::enclosing_conditional() const
- {
--   if (is_conditional())
--      return this;
--
--   if (parent_scope)
--      return parent_scope->enclosing_conditional();
--
-    return nullptr;
- }
- 
-@@ -551,8 +548,8 @@
+@@ -551,7 +547,7 @@
     first_write(-1),
     last_read(-1),
     last_write(-1),
 -   first_read(numeric_limits<int>::max()),
--   conditionality_in_loop_id(conditionality_untouched),
-+//   first_read(numeric_limits<int>::max()),
-+//   conditionality_in_loop_id(conditionality_untouched),
++   first_read(0x3FFFFFFF),
+    conditionality_in_loop_id(conditionality_untouched),
     if_scope_write_flags(0),
     next_ifelse_nesting_depth(0),
-    current_unpaired_if_write_scope(nullptr),
-@@ -573,8 +570,6 @@
-    /* If the conditionality of the first write is already resolved then
-     * no further checks are required.
-     */
--   if (conditionality_in_loop_id == write_is_unconditional ||
--       conditionality_in_loop_id == write_is_conditional)
-       return;
- 
-    /* Check whether we are in a condition within a loop */
-@@ -586,8 +581,6 @@
-        * resolved as unconditional in the enclosing loop then check whether
-        * we read before write in an IF/ELSE branch.
-        */
--      if ((conditionality_in_loop_id != write_is_conditional) &&
--          (conditionality_in_loop_id != enclosing_loop->id())) {
- 
-          if (current_unpaired_if_write_scope)  {
- 
-@@ -611,9 +604,7 @@
-           * it should survive a loop. This can be signaled like if it were
-           * conditionally written.
-           */
--         conditionality_in_loop_id = write_is_conditional;
-       }
--   }
- }
- 
- void temp_comp_access::record_write(int line, prog_scope *scope)
-@@ -630,22 +621,16 @@
-        */
-       const prog_scope *conditional = scope->enclosing_conditional();
-       if (!conditional || !conditional->innermost_loop()) {
--         conditionality_in_loop_id = write_is_unconditional;
-       }
-    }
- 
-    /* The conditionality of the first write is already resolved. */
--   if (conditionality_in_loop_id == write_is_unconditional ||
--       conditionality_in_loop_id == write_is_conditional)
-       return;
- 
-    /* If the nesting depth is larger than the supported level,
-     * then we assume conditional writes.
-     */
--   if (next_ifelse_nesting_depth >= supported_ifelse_nesting_depth) {
--      conditionality_in_loop_id = write_is_conditional;
-       return;
--   }
- 
-    /* If we are in an IF/ELSE scope within a loop and the loop has not
-     * been resolved already, then record this write.
-@@ -662,7 +647,6 @@
-       /* The first write in an IF branch within a loop implies unresolved
-        * conditionality (if it was untouched or unconditional before).
-        */
--      conditionality_in_loop_id = conditionality_unresolved;
-       was_written_in_current_else_scope = false;
-       record_if_write(scope);
-    } else {
-@@ -757,13 +741,12 @@
-      /* The temporary was not written in the IF branch corresponding
-       * to this ELSE branch, hence the write is conditional.
-       */
--      conditionality_in_loop_id = write_is_conditional;
-    }
- }
- 
- bool temp_comp_access::conditional_ifelse_write_in_loop() const
- {
--   return conditionality_in_loop_id <= conditionality_unresolved;
-+   return 0;
- }
- 
- void temp_comp_access::propagate_lifetime_to_dominant_write_scope()
 diff -aur mesa-18.2.5-orig/include/drm-uapi/drm.h .mesa-18.2.5/include/drm-uapi/drm.h
 --- mesa-18.2.5-orig/include/drm-uapi/drm.h	2018-11-15 15:32:30.000000000 +0300
 +++ mesa-18.2.5/include/drm-uapi/drm.h	2018-11-27 14:33:18.038728314 +0300
