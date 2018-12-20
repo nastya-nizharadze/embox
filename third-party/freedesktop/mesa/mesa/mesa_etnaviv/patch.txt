@@ -967,6 +967,15 @@ diff -aur mesa-18.2.5-orig/src/gallium/auxiliary/pipe-loader/pipe_loader_drm.c m
  #include "target-helpers/drm_helper_public.h"
  #include "state_tracker/drm_driver.h"
  #include "pipe_loader_priv.h"
+@@ -45,7 +46,7 @@
+ #include "util/u_dl.h"
+ #include "util/u_debug.h"
+ 
+-#define DRM_RENDER_NODE_DEV_NAME_FORMAT "%s/renderD%d"
++#define DRM_RENDER_NODE_DEV_NAME_FORMAT "/dev/card"
+ #define DRM_RENDER_NODE_MAX_NODES 63
+ #define DRM_RENDER_NODE_MIN_MINOR 128
+ #define DRM_RENDER_NODE_MAX_MINOR (DRM_RENDER_NODE_MIN_MINOR + DRM_RENDER_NODE_MAX_NODES)
 diff -aur mesa-18.2.5-orig/src/loader/meson.build .mesa-18.2.5/src/loader/meson.build
 --- mesa-18.2.5-orig/src/loader/meson.build	2018-11-15 15:32:30.000000000 +0300
 +++ mesa-18.2.5/src/loader/meson.build	2018-11-28 13:37:12.429213122 +0300
@@ -1064,3 +1073,86 @@ diff -aur mesa-18.2.5-orig/src/util/macros.h mesa-18.2.5/src/util/macros.h
  #define EXPLICIT_CONVERSION explicit
  #elif defined(__cplusplus)
  #define EXPLICIT_CONVERSION
+--- mesa-18.2.5-orig/src/gallium/auxiliary/util/u_debug_image.c	2018-11-15 15:32:30.000000000 +0300
++++ mesa-18.2.5/src/gallium/auxiliary/util/u_debug_image.c	2018-12-20 15:18:14.249309336 +0300
+@@ -34,9 +34,13 @@
+ 
+ #include <stdio.h>
+ 
++#include <drivers/video/fb.h>
++#include <drivers/video/fb_overlay.h>
+ 
+-#ifdef DEBUG
+ 
++#if 1
++
++static struct fb_info *mesa_fbi;
+ /**
+  * Dump an image to .ppm file.
+  * \param format  PIPE_FORMAT_x
+@@ -261,28 +273,30 @@
+    bmih.biYPelsPerMeter = 0;
+    bmih.biClrUsed = 0;
+    bmih.biClrImportant = 0;
++   mesa_fbi = fb_lookup(0);
+ 
+-   stream = fopen(filename, "wb");
+-   if (!stream)
+-      goto error1;
+-
+-   fwrite(&bmfh, 14, 1, stream);
+-   fwrite(&bmih, 40, 1, stream);
++   printf("%dx%d, %dbpp base %p\n", mesa_fbi->var.xres, mesa_fbi->var.yres,
++		   mesa_fbi->var.bits_per_pixel, mesa_fbi->screen_base);
+ 
+    y = height;
++
++   uint16_t *base = mesa_fbi->screen_base;
++
+    while (y--) {
+       float *ptr = rgba + (stride * y * 4);
+       for (x = 0; x < width; ++x) {
++      uint16_t *ptr_d = base + (y * mesa_fbi->var.xres + x);
+          struct bmp_rgb_quad pixel;
+          pixel.rgbRed   = float_to_ubyte(ptr[x*4 + 0]);
+          pixel.rgbGreen = float_to_ubyte(ptr[x*4 + 1]);
+          pixel.rgbBlue  = float_to_ubyte(ptr[x*4 + 2]);
+          pixel.rgbAlpha = float_to_ubyte(ptr[x*4 + 3]);
+-         fwrite(&pixel, 1, 4, stream);
++
++	 pix_fmt_convert(&pixel, ptr_d, 1, RGBA8888, RGB565);
++
+       }
+    }
+ 
+-   fclose(stream);
+ error1:
+    ;
+ }
+--- mesa-18.2.5-orig/src/gallium/auxiliary/util/u_debug_image.h	2018-11-15 15:32:30.000000000 +0300
++++ mesa-18.2.5/src/gallium/auxiliary/util/u_debug_image.h	2018-12-20 13:48:41.819002990 +0300
+@@ -32,7 +32,7 @@
+ #include "pipe/p_format.h"
+ 
+ 
+-#ifdef DEBUG
++#if 1
+ struct pipe_context;
+ struct pipe_surface;
+ struct pipe_transfer;
+--- mesa-18.2.5-orig/include/c11/threads.h	2018-11-15 15:32:30.000000000 +0300
++++ mesa-18.2.5/include/c11/threads.h	2018-12-19 17:06:36.701749715 +0300
+@@ -60,13 +60,7 @@
+ 
+ /*-------------------------- functions --------------------------*/
+ 
+-#if defined(_WIN32) && !defined(__CYGWIN__)
+-#include "threads_win32.h"
+-#elif defined(HAVE_PTHREAD)
+ #include "threads_posix.h"
+-#else
+-#error Not supported on this platform.
+-#endif
+ 
+ 
+ 
