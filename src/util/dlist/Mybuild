@@ -1,13 +1,13 @@
 package embox.util
 
 
-@DefaultImpl(DListDebug)
-abstract module DList {}
+@DefaultImpl(dlist_debug)
+abstract module dlist {}
 
-static module DListDebug extends DList {
+static module dlist_debug extends dlist {
 	source "dlist_debug.h"
 	source "dlist_debug.c"
 }
-static module DListNDebug extends DList {
+static module dlist_ndebug extends dlist {
 	source "dlist_ndebug.h"
 }
