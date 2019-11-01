@@ -3,7 +3,7 @@
 #endif /* HAL_ARCH_H_ */
 
 #ifndef __BYTE_ORDER__
-#define __BYTE_ORDER __BIG_ENDIAN
+#define __BYTE_ORDER __LITTLE_ENDIAN
 #define BYTE_ORDER __BYTE_ORDER
 #endif
 

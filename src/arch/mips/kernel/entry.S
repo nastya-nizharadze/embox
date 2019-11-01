@@ -45,8 +45,8 @@ NESTED(mips_first_exception_handler, 0, $sp)
 
 	mfc0  $k1, $CP0_CAUSE
 	andi  $k1, $k1, 0x7c       /* read exception number */
-
-	j     mips_second_exception_handler /* jump to real exception handler */
+	la    $t1, mips_second_exception_handler
+	jr    $t1 /* jump to real exception handler */
 	nop
 
 	.set  pop                  /* restore the previous status of flags */

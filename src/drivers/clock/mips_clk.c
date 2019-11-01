@@ -14,6 +14,7 @@
 #include <hal/system.h>
 #include <kernel/irq.h>
 #include <kernel/time/clock_source.h>
+//#include <kernel/printk.h>
 
 #include <embox/unit.h>
 
@@ -53,6 +54,8 @@ static int mips_clock_init(void) {
 	if (err) {
 		return err;
 	}
+
+	//while (1) { printk("%x\n", mips_read_c0_intctl()); }
 
 	err = irq_attach(MIPS_IRQN_TIMER, clock_handler, 0, &mips_clock_source, "mips_clk");
 	if (err) {
